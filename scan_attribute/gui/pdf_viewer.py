@@ -48,7 +48,7 @@ class PDFPageCanvas(QGraphicsView):
         self._pixmap_items.clear()
 
         current_y = 0
-        gap = 16  # Vertical gap between continuous pages
+        gap = 4  # Minimal gap so pages are attached continuously right beneath each other
         max_width = 0
 
         for pixmap in pixmaps:
@@ -62,7 +62,7 @@ class PDFPageCanvas(QGraphicsView):
             if pixmap.width() > max_width:
                 max_width = pixmap.width()
 
-        self._scene.setSceneRect(-20, -20, max_width + 40, max(current_y + 40, 200))
+        self._scene.setSceneRect(-10, -10, max_width + 20, max(current_y + 10, 200))
 
     def mousePressEvent(self, event):
         # Trigger Crop OCR only if ocr_crop_mode is ON or Shift key is held!
@@ -128,8 +128,15 @@ class PDFPageCanvas(QGraphicsView):
             factor = 1.25 if event.angleDelta().y() > 0 else 1 / 1.25
             self.scale(factor, factor)
             event.accept()
-            return
-        super().wheelEvent(event)
+        else:
+            # Smooth mouse wheel scrolling continuously up/down attached pages
+            delta = event.angleDelta().y()
+            if delta != 0:
+                v_bar = self.verticalScrollBar()
+                v_bar.setValue(v_bar.value() - delta)
+                event.accept()
+            else:
+                super().wheelEvent(event)
 
 
 class PDFViewerWidget(QWidget):
