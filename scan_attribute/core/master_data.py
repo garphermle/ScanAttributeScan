@@ -15,15 +15,15 @@ def get_default_excel_path() -> str:
     if os.path.exists(resource_path):
         return resource_path
     
-    # Fallback to current working directory resources
-    cwd_path = os.path.join(os.getcwd(), "resources", "Excel_FormMau.xlsx")
-    if os.path.exists(cwd_path):
-        return cwd_path
-
-    # Fallback to hardcoded source root path if present
-    fallback = "/home/garpherm/VNPT/Source/Excel_FormMau_v5_04082026.xlsx"
-    if os.path.exists(fallback):
-        return fallback
+    # Fallback search paths
+    search_paths = [
+        os.path.join(os.getcwd(), "scan_attribute", "resources", "Excel_FormMau.xlsx"),
+        os.path.join(os.getcwd(), "resources", "Excel_FormMau.xlsx"),
+        "/home/garpherm/VNPT/Source/Excel_FormMau_v5_04082026.xlsx"
+    ]
+    for p in search_paths:
+        if os.path.exists(p):
+            return p
         
     return resource_path
 

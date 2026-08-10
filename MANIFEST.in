@@ -1,0 +1,1 @@
+recursive-include scan_attribute/resources *.xlsx

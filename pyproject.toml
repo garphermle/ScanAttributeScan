@@ -22,3 +22,7 @@ scan-attribute = "scan_attribute.main:main"
 
 [tool.setuptools.packages.find]
 where = ["."]
+
+[tool.setuptools.package-data]
+scan_attribute = ["resources/*", "resources/*.xlsx"]
+
