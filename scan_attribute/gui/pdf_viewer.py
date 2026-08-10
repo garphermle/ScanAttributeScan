@@ -14,11 +14,7 @@ from PySide6.QtWidgets import (
     QRubberBand, QTabWidget, QToolBar, QToolTip, QFileDialog, QFrame, QApplication,
     QGraphicsView, QGraphicsScene, QGraphicsPixmapItem
 )
-from PySide6.QtCore import Qt, Signal, QRect, QPoint, QSize, QBuffer, QIODevice
-from PySide6.QtGui import QPixmap, QImage, QColor, QFont, QAction, QCursor, QGuiApplication, QWheelEvent
-
-from scan_attribute.core.pdf_engine import PDFEngine
-from scan_attribute.core.ocr_engine import OCREngine
+from PySide6.QtCore import Qt, Signal, QRect, QRectF, QPoint, QSize, QBuffer, QIODevice
 
 
 class PDFPageCanvas(QGraphicsView):
@@ -27,8 +23,6 @@ class PDFPageCanvas(QGraphicsView):
     def __init__(self, parent=None):
         super().__init__(parent)
         self._scene = QGraphicsScene(self)
-        self._pixmap_item = QGraphicsPixmapItem()
-        self._scene.addItem(self._pixmap_item)
         self.setScene(self._scene)
         self.setBackgroundBrush(Qt.GlobalColor.darkGray)
         self.setDragMode(QGraphicsView.DragMode.ScrollHandDrag)
@@ -36,6 +30,7 @@ class PDFPageCanvas(QGraphicsView):
         self.setResizeAnchor(QGraphicsView.ViewportAnchor.AnchorViewCenter)
         self.setFrameShape(QGraphicsView.Shape.NoFrame)
 
+        self._pixmap_items: List[QGraphicsPixmapItem] = []
         self.ocr_crop_mode = False
         self._is_selecting = False
         self._origin_point = QPoint()
@@ -48,9 +43,26 @@ class PDFPageCanvas(QGraphicsView):
         else:
             self.viewport().setCursor(Qt.CursorShape.ArrowCursor)
 
-    def set_pixmap(self, pixmap: QPixmap):
-        self._pixmap_item.setPixmap(pixmap)
-        self._scene.setSceneRect(self._pixmap_item.boundingRect())
+    def set_pages(self, pixmaps: List[QPixmap]):
+        self._scene.clear()
+        self._pixmap_items.clear()
+
+        current_y = 0
+        gap = 16  # Vertical gap between continuous pages
+        max_width = 0
+
+        for pixmap in pixmaps:
+            if pixmap.isNull():
+                continue
+            item = QGraphicsPixmapItem(pixmap)
+            item.setPos(0, current_y)
+            self._scene.addItem(item)
+            self._pixmap_items.append(item)
+            current_y += pixmap.height() + gap
+            if pixmap.width() > max_width:
+                max_width = pixmap.width()
+
+        self._scene.setSceneRect(-20, -20, max_width + 40, max(current_y + 40, 200))
 
     def mousePressEvent(self, event):
         # Trigger Crop OCR only if ocr_crop_mode is ON or Shift key is held!
@@ -80,24 +92,33 @@ class PDFPageCanvas(QGraphicsView):
             self.setDragMode(QGraphicsView.DragMode.ScrollHandDrag)
             rect = self._rubber_band.geometry()
 
-            if rect.width() > 5 and rect.height() > 5 and not self._pixmap_item.pixmap().isNull():
+            if rect.width() > 5 and rect.height() > 5 and self._pixmap_items:
                 scene_rect = self.mapToScene(rect).boundingRect()
-                pixmap_rect = self._pixmap_item.boundingRect()
-                intersected = scene_rect.intersected(pixmap_rect)
 
-                if not intersected.isEmpty():
-                    cropped_pixmap = self._pixmap_item.pixmap().copy(intersected.toRect())
-                    if not cropped_pixmap.isNull():
-                        qimg = cropped_pixmap.toImage()
-                        buffer = QBuffer()
-                        buffer.open(QIODevice.OpenModeFlag.ReadWrite)
-                        qimg.save(buffer, "PNG")
-                        image_bytes = bytes(buffer.data())
-                        buffer.close()
+                for item in self._pixmap_items:
+                    item_scene_rect = item.sceneBoundingRect()
+                    intersected = scene_rect.intersected(item_scene_rect)
+                    if not intersected.isEmpty() and intersected.width() > 3 and intersected.height() > 3:
+                        local_rect = QRectF(
+                            intersected.x() - item.x(),
+                            intersected.y() - item.y(),
+                            intersected.width(),
+                            intersected.height()
+                        ).toRect()
 
-                        arr = cv2.imdecode(np.frombuffer(image_bytes, np.uint8), cv2.IMREAD_COLOR)
-                        if arr is not None:
-                            self.area_crop_selected.emit(arr)
+                        cropped_pixmap = item.pixmap().copy(local_rect)
+                        if not cropped_pixmap.isNull():
+                            qimg = cropped_pixmap.toImage()
+                            buffer = QBuffer()
+                            buffer.open(QIODevice.OpenModeFlag.ReadWrite)
+                            qimg.save(buffer, "PNG")
+                            image_bytes = bytes(buffer.data())
+                            buffer.close()
+
+                            arr = cv2.imdecode(np.frombuffer(image_bytes, np.uint8), cv2.IMREAD_COLOR)
+                            if arr is not None:
+                                self.area_crop_selected.emit(arr)
+                                break
             event.accept()
             return
         super().mouseReleaseEvent(event)
@@ -178,7 +199,7 @@ class PDFViewerWidget(QWidget):
 
         self.btn_prev = QPushButton("◀")
         self.btn_next = QPushButton("▶")
-        self.lbl_page = QLabel("1/1")
+        self.lbl_page = QLabel("0/0")
         self.lbl_page.setStyleSheet("font-weight: bold; font-size: 12px; padding: 0 4px;")
 
         self.btn_zoom_in = QPushButton("🔍 +")
@@ -207,6 +228,7 @@ class PDFViewerWidget(QWidget):
         # High Performance QGraphicsView Canvas (matching pdfsplit_ai)
         self.canvas = PDFPageCanvas()
         self.canvas.area_crop_selected.connect(self._handle_crop_ocr)
+        self.canvas.verticalScrollBar().valueChanged.connect(self._on_scroll)
 
         layout.addWidget(self.canvas, stretch=1)
 
@@ -300,27 +322,53 @@ class PDFViewerWidget(QWidget):
             self.current_page = 0
             self.rotation = 0
             self.lbl_current_file.setText(f"📄 {os.path.basename(pdf_path)}")
-            self._render_current_page()
+            self._render_all_pages()
         else:
             self.lbl_current_file.setText("⚠️ Không nạp được PDF")
 
-    def _render_current_page(self):
-        pixmap, img_np = self.pdf_engine.render_page_qpixmap(
-            self.current_page, scale=self.scale_factor, rotation=self.rotation
-        )
-        if pixmap and not pixmap.isNull():
-            self.canvas.set_pixmap(pixmap)
-            self.lbl_page.setText(f"{self.current_page + 1}/{self.pdf_engine.page_count}")
+    def _render_all_pages(self):
+        pixmaps = []
+        for i in range(self.pdf_engine.page_count):
+            pixmap, _ = self.pdf_engine.render_page_qpixmap(
+                i, scale=self.scale_factor, rotation=self.rotation
+            )
+            if pixmap and not pixmap.isNull():
+                pixmaps.append(pixmap)
+        
+        self.canvas.set_pages(pixmaps)
+        self._update_page_label()
+
+    def _update_page_label(self):
+        if self.pdf_engine.page_count > 0:
+            self.lbl_page.setText(f"Trang {self.current_page + 1}/{self.pdf_engine.page_count} (Cuộn liên tục)")
+        else:
+            self.lbl_page.setText("0/0")
+
+    def _on_scroll(self):
+        if not self.canvas._pixmap_items:
+            return
+        viewport_center = self.canvas.mapToScene(self.canvas.viewport().rect().center())
+        for idx, item in enumerate(self.canvas._pixmap_items):
+            if item.sceneBoundingRect().contains(viewport_center):
+                if self.current_page != idx:
+                    self.current_page = idx
+                    self._update_page_label()
+                break
+
+    def goto_page(self, page_index: int):
+        if 0 <= page_index < len(self.canvas._pixmap_items):
+            item = self.canvas._pixmap_items[page_index]
+            self.canvas.ensureVisible(item, 50, 50)
+            self.current_page = page_index
+            self._update_page_label()
 
     def prev_page(self):
         if self.current_page > 0:
-            self.current_page -= 1
-            self._render_current_page()
+            self.goto_page(self.current_page - 1)
 
     def next_page(self):
         if self.current_page < self.pdf_engine.page_count - 1:
-            self.current_page += 1
-            self._render_current_page()
+            self.goto_page(self.current_page + 1)
 
     def zoom_in(self):
         self.canvas.scale(1.25, 1.25)
@@ -330,11 +378,11 @@ class PDFViewerWidget(QWidget):
 
     def rotate_left(self):
         self.rotation = (self.rotation - 90) % 360
-        self._render_current_page()
+        self._render_all_pages()
 
     def rotate_right(self):
         self.rotation = (self.rotation + 90) % 360
-        self._render_current_page()
+        self._render_all_pages()
 
     def _handle_crop_ocr(self, crop_bgr: np.ndarray):
         text = self.ocr_engine.ocr_crop(crop_bgr)
@@ -347,3 +395,4 @@ class PDFViewerWidget(QWidget):
             self.ocr_text_captured.emit(text)
         else:
             QToolTip.showText(QCursor.pos(), "⚠️ Không nhận diện được chữ", self, QRect(), 2000)
+
