@@ -6,6 +6,7 @@ import pytest
 import os
 from scan_attribute.core.data_models import parse_date_flexible, MasterDataManager
 from scan_attribute.core.excel_engine import ExcelEngine
+from scan_attribute.core.master_data import get_default_excel_path
 
 def test_flexible_date_parsing():
     assert parse_date_flexible("1/5/2026") == "01/05/2026"
@@ -14,7 +15,7 @@ def test_flexible_date_parsing():
     assert parse_date_flexible("2026-08-09") == "09/08/2026"
 
 def test_excel_template_columns():
-    excel_path = "/home/garpherm/VNPT/Source/Excel_FormMau_v5_04082026.xlsx"
+    excel_path = get_default_excel_path()
     assert os.path.exists(excel_path)
 
     engine = ExcelEngine(excel_path)
@@ -26,7 +27,7 @@ def test_excel_template_columns():
     assert engine.ws.max_column >= 180  # Standard template has 186 columns
 
 def test_excel_read_row_sample():
-    excel_path = "/home/garpherm/VNPT/Source/Excel_FormMau_v5_04082026.xlsx"
+    excel_path = get_default_excel_path()
     engine = ExcelEngine(excel_path)
     engine.initialize()
 
@@ -38,3 +39,4 @@ def test_excel_read_row_sample():
     assert data.get(9) == "Nguyễn Anh Tuấn"
     assert str(data.get(43)) == "124"
     assert str(data.get(44)) == "71"
+
