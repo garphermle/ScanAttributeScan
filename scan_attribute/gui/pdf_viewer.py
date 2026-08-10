@@ -15,6 +15,11 @@ from PySide6.QtWidgets import (
     QGraphicsView, QGraphicsScene, QGraphicsPixmapItem
 )
 from PySide6.QtCore import Qt, Signal, QRect, QRectF, QPoint, QSize, QBuffer, QIODevice
+from PySide6.QtGui import QPixmap, QImage, QColor, QFont, QAction, QCursor, QGuiApplication, QWheelEvent
+
+from scan_attribute.core.pdf_engine import PDFEngine
+from scan_attribute.core.ocr_engine import OCREngine
+
 
 
 class PDFPageCanvas(QGraphicsView):

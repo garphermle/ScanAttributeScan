@@ -1,0 +1,163 @@
+name: Build Cross-Platform Executables (Windows & Linux)
+
+on:
+  push:
+    branches: [ "main", "master" ]
+    tags: [ "v*" ]
+  pull_request:
+    branches: [ "main", "master" ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-windows:
+    name: Build Windows App
+    runs-on: windows-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install .
+          pip install pyinstaller pytest pytest-qt
+
+      - name: Run unit tests
+        run: |
+          pytest tests/ -v
+
+      - name: Build Folder Executable with PyInstaller
+        run: |
+          pyinstaller --noconfirm --onedir --windowed `
+            --name ScanAttribute `
+            --add-data "scan_attribute/resources/Excel_FormMau.xlsx;scan_attribute/resources" `
+            --collect-all rapidocr_onnxruntime `
+            --collect-all pypdfium2 `
+            scan_attribute/main.py
+
+      - name: Build Standalone Single File EXE
+        run: |
+          pyinstaller --noconfirm --onefile --windowed `
+            --name ScanAttribute-Standalone `
+            --add-data "scan_attribute/resources/Excel_FormMau.xlsx;scan_attribute/resources" `
+            --collect-all rapidocr_onnxruntime `
+            --collect-all pypdfium2 `
+            scan_attribute/main.py
+
+      - name: Compress Directory Build Artifact
+        shell: powershell
+        run: |
+          Compress-Archive -Path dist/ScanAttribute/* -DestinationPath ScanAttribute-Windows-x64.zip
+
+      - name: Upload Directory Build Artifact (Zip)
+        uses: actions/upload-artifact@v4
+        with:
+          name: ScanAttribute-Windows-x64-Zip
+          path: ScanAttribute-Windows-x64.zip
+          retention-days: 90
+
+      - name: Upload Standalone EXE Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ScanAttribute-Standalone-EXE
+          path: dist/ScanAttribute-Standalone.exe
+          retention-days: 90
+
+      - name: Create Windows Release Asset
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            ScanAttribute-Windows-x64.zip
+            dist/ScanAttribute-Standalone.exe
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  build-linux:
+    name: Build Linux App
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install System Dependencies for Qt & PySide6
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libegl1-mesa libgl1-mesa-glx libxkbcommon-x11-0 \
+            libxcb-icccm4 libxcb-image0 libxcb-keysyms1 libxcb-randr0 \
+            libxcb-render-util0 libxcb-xinerama0 libxcb-xfixes0 libdbus-1-3 xvfb
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install .
+          pip install pyinstaller pytest pytest-qt
+
+      - name: Run unit tests (Offscreen / Xvfb)
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: |
+          xvfb-run pytest tests/ -v
+
+      - name: Build Folder Executable with PyInstaller
+        run: |
+          pyinstaller --noconfirm --onedir --windowed \
+            --name ScanAttribute \
+            --add-data "scan_attribute/resources/Excel_FormMau.xlsx:scan_attribute/resources" \
+            --collect-all rapidocr_onnxruntime \
+            --collect-all pypdfium2 \
+            scan_attribute/main.py
+
+      - name: Build Standalone Executable with PyInstaller
+        run: |
+          pyinstaller --noconfirm --onefile --windowed \
+            --name ScanAttribute-Standalone-Linux \
+            --add-data "scan_attribute/resources/Excel_FormMau.xlsx:scan_attribute/resources" \
+            --collect-all rapidocr_onnxruntime \
+            --collect-all pypdfium2 \
+            scan_attribute/main.py
+
+      - name: Compress Directory Build Artifact
+        run: |
+          tar -czvf ScanAttribute-Linux-x64.tar.gz -C dist/ScanAttribute .
+
+      - name: Upload Linux Directory Build Artifact (tar.gz)
+        uses: actions/upload-artifact@v4
+        with:
+          name: ScanAttribute-Linux-x64-TarGz
+          path: ScanAttribute-Linux-x64.tar.gz
+          retention-days: 90
+
+      - name: Upload Linux Standalone Binary Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ScanAttribute-Standalone-Linux
+          path: dist/ScanAttribute-Standalone-Linux
+          retention-days: 90
+
+      - name: Create Linux Release Asset
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            ScanAttribute-Linux-x64.tar.gz
+            dist/ScanAttribute-Standalone-Linux
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
