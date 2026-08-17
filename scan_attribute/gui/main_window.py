@@ -15,6 +15,7 @@ from PySide6.QtGui import QAction, QKeySequence, QShortcut, QFont
 from scan_attribute.core.master_data import get_default_excel_path
 from scan_attribute.core.data_models import MasterDataManager
 from scan_attribute.core.excel_engine import ExcelEngine
+from scan_attribute.core.file_tracker import FileTracker
 from scan_attribute.gui.queue_widget import QueueWidget
 from scan_attribute.gui.pdf_viewer import PDFViewerWidget
 from scan_attribute.gui.form_widget import AttributeFormWidget
@@ -36,8 +37,13 @@ class MainWindow(QMainWindow):
         self.excel_engine = ExcelEngine(self.template_path, self.excel_path)
         self.excel_engine.initialize()
 
+        self.file_tracker = FileTracker()
+
+        self.current_item_type = "folder"  # "folder" or "file"
         self.current_folder = ""
         self.current_full_path = ""
+        self.current_file = ""
+        self.current_file_path = ""
 
         self._init_ui()
         self._setup_shortcuts()
@@ -104,11 +110,13 @@ class MainWindow(QMainWindow):
         # 1. Left Queue (QTreeWidget)
         self.queue_widget = QueueWidget()
         self.queue_widget.folder_selected.connect(self.on_folder_selected)
+        self.queue_widget.file_selected.connect(self.on_file_selected)
         main_splitter.addWidget(self.queue_widget)
 
         # 2. Center PDF Viewer
         self.pdf_viewer = PDFViewerWidget()
         self.pdf_viewer.ocr_text_captured.connect(self.on_ocr_text_captured)
+        self.pdf_viewer.pdf_tab_changed.connect(self.on_pdf_tab_changed)
         main_splitter.addWidget(self.pdf_viewer)
 
         # 3. Right Form
@@ -215,50 +223,139 @@ class MainWindow(QMainWindow):
     def refresh_queue(self):
         if not self.root_dir:
             return
+        self.file_tracker.load(self.root_dir, self.excel_path)
         processed_map = self.excel_engine.get_processed_serials_info()
-        self.queue_widget.load_folders(self.root_dir, processed_map)
+        file_map = self.file_tracker.get_all_file_mappings()
+        self.queue_widget.load_folders(self.root_dir, processed_map, file_map)
         self._update_banner_and_status()
 
     def on_folder_selected(self, folder_name: str, full_folder_path: str = ""):
+        self.current_item_type = "folder"
         self.current_folder = folder_name
         self.current_full_path = full_folder_path or os.path.join(self.root_dir, folder_name)
+        self.current_file = ""
+        self.current_file_path = ""
 
         # 1. Load PDFs in viewer using full path
         self.pdf_viewer.load_folder_pdfs(self.current_full_path)
 
-        # 2. Check if row exists in target Excel
-        row_idx = self.excel_engine.find_row_by_serial(folder_name)
+        # 2. Load folder record
+        self._load_record_to_form(folder_name)
+
+    def on_file_selected(self, folder_name: str, full_folder_path: str, pdf_filename: str):
+        is_new_folder = (self.current_full_path != full_folder_path)
+        self.current_item_type = "file"
+        self.current_folder = folder_name
+        self.current_full_path = full_folder_path
+        self.current_file = pdf_filename
+        self.current_file_path = os.path.join(full_folder_path, pdf_filename)
+
+        if is_new_folder:
+            self.pdf_viewer.load_folder_pdfs(full_folder_path, select_filename=pdf_filename)
+        else:
+            self.pdf_viewer.select_pdf_tab_by_name(pdf_filename)
+
+        self._load_file_record_to_form(self.current_file_path, folder_name, pdf_filename)
+        self.form_widget.navigate_to_pdf_type(pdf_filename)
+
+    def on_pdf_tab_changed(self, filename: str):
+        """Fires when tab changes in PDF Viewer; syncs queue item and auto-focuses form."""
+        self.queue_widget.highlight_pdf_file(filename)
+        self.form_widget.navigate_to_pdf_type(filename)
+        if self.current_full_path:
+            f_path = os.path.join(self.current_full_path, filename)
+            if os.path.exists(f_path):
+                self.current_item_type = "file"
+                self.current_file = filename
+                self.current_file_path = f_path
+                self._load_file_record_to_form(f_path, self.current_folder, filename)
+
+    def _load_file_record_to_form(self, file_path: str, folder_name: str, pdf_filename: str):
+        """Loads record specifically for an individual PDF file."""
+        info = self.file_tracker.get_file_info(file_path)
+        base_clean = os.path.splitext(pdf_filename)[0]
+
+        if info:
+            row_idx = info["row"]
+            row_data = self.excel_engine.read_row_data(row_idx)
+            serial_val = str(info.get("serial") or row_data.get(2) or base_clean)
+            self.form_widget.load_attr_dict(row_data, serial_val)
+            self._update_banner_and_status(f"📄 File: [{pdf_filename}] ➔ Đã lưu tại Dòng {row_idx} (STT {info['stt']}) (Sửa và bấm Lưu để cập nhật)")
+        else:
+            # Try finding in Excel by filename or base clean
+            row_idx = self.excel_engine.find_row_by_serial(pdf_filename) or self.excel_engine.find_row_by_serial(base_clean)
+            if row_idx:
+                row_data = self.excel_engine.read_row_data(row_idx)
+                serial_val = str(row_data.get(2) or base_clean)
+                self.form_widget.load_attr_dict(row_data, serial_val)
+                self.file_tracker.record_file_saved(file_path, row_idx, row_idx - 4, serial_val)
+                self._update_banner_and_status(f"📄 File: [{pdf_filename}] ➔ Khớp Dòng {row_idx} trong Excel")
+            else:
+                empty_data = {2: base_clean, 183: folder_name}
+                self.form_widget.load_attr_dict(empty_data, base_clean)
+                next_row = self.excel_engine.find_first_empty_row()
+                self._update_banner_and_status(f"📄 File mới: [{pdf_filename}] ➔ Chưa lưu (Sẽ ghi vào Dòng {next_row} - STT {next_row - 4})")
+
+    def _load_record_to_form(self, folder_name: str):
+        info = self.file_tracker.get_folder_info(self.current_full_path)
+        row_idx = info.get("row") if info else None
+        if not row_idx:
+            row_idx = self.excel_engine.find_row_by_serial(folder_name)
+
         if row_idx:
             row_data = self.excel_engine.read_row_data(row_idx)
             self.form_widget.load_attr_dict(row_data, folder_name)
             stt = row_idx - 4
-            self._update_banner_and_status(f"Đã mở {folder_name} (Đã có tại Dòng {row_idx} - STT {stt})")
+            self._update_banner_and_status(f"📁 Hồ sơ: [{folder_name}] (Đã có tại Dòng {row_idx} - STT {stt})")
         else:
             empty_data = {2: folder_name, 183: folder_name}
             self.form_widget.load_attr_dict(empty_data, folder_name)
             next_row = self.excel_engine.find_first_empty_row()
             next_stt = next_row - 4
-            self._update_banner_and_status(f"Đã mở {folder_name} (Sẽ ghi vào Dòng {next_row} - STT {next_stt})")
+            self._update_banner_and_status(f"📁 Hồ sơ mới: [{folder_name}] (Sẽ ghi vào Dòng {next_row} - STT {next_stt})")
 
     def on_ocr_text_captured(self, text: str):
         self.form_widget.set_ocr_text_to_active_field(text)
 
     def save_and_next(self):
-        if not self.current_folder:
-            QMessageBox.warning(self, "Chưa chọn hồ sơ", "Vui lòng chọn 1 hồ sơ trong danh sách trước khi lưu!")
+        if not self.current_folder and not self.current_file_path:
+            QMessageBox.warning(self, "Chưa chọn mục", "Vui lòng chọn 1 hồ sơ hoặc file PDF trong danh sách trước khi lưu!")
             return
 
         try:
             attr_dict = self.form_widget.get_attr_dict()
-            row_idx = self.excel_engine.save_row_data(self.current_folder, attr_dict)
-            stt_val = row_idx - 4
 
-            # Update Queue status with exact Row and STT
-            self.queue_widget.update_processed_status(self.current_folder, row_idx, stt_val)
-            self._update_banner_and_status(f"✅ Đã lưu {self.current_folder} vào Dòng {row_idx} (STT {stt_val})")
+            if self.current_item_type == "file" and self.current_file_path:
+                # 1. FILE-LEVEL SAVE
+                info = self.file_tracker.get_file_info(self.current_file_path)
+                target_row = info.get("row") if info else None
+                serial_val = attr_dict.get(2) or os.path.splitext(self.current_file)[0]
 
-            # Auto advance to next folder in Tree
-            self.queue_widget.select_next_folder()
+                row_idx = self.excel_engine.save_row_data(serial=serial_val, attr_dict=attr_dict, target_row=target_row)
+                stt_val = row_idx - 4
+
+                self.file_tracker.record_file_saved(self.current_file_path, row_idx, stt_val, serial_val)
+                self.queue_widget.update_file_status(self.current_file_path, row_idx, stt_val)
+                self._update_banner_and_status(f"✅ Đã lưu file [{self.current_file}] vào Dòng {row_idx} (STT {stt_val})")
+
+                # Auto advance to next item
+                self.queue_widget.select_next_item()
+
+            else:
+                # 2. FOLDER-LEVEL SAVE
+                info = self.file_tracker.get_folder_info(self.current_full_path)
+                target_row = info.get("row") if info else None
+                serial_val = attr_dict.get(2) or self.current_folder
+
+                row_idx = self.excel_engine.save_row_data(serial=serial_val, attr_dict=attr_dict, target_row=target_row)
+                stt_val = row_idx - 4
+
+                self.file_tracker.record_folder_saved(self.current_full_path, row_idx, stt_val, serial_val)
+                self.queue_widget.update_processed_status(self.current_folder, row_idx, stt_val)
+                self._update_banner_and_status(f"✅ Đã lưu hồ sơ [{self.current_folder}] vào Dòng {row_idx} (STT {stt_val})")
+
+                # Auto advance to next item
+                self.queue_widget.select_next_item()
 
         except Exception as e:
             QMessageBox.critical(self, "Lỗi khi lưu Excel", f"Không thể lưu dữ liệu: {e}")

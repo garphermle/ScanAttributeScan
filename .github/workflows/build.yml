@@ -41,6 +41,7 @@ jobs:
           pyinstaller --noconfirm --onedir --windowed `
             --name ScanAttribute `
             --add-data "scan_attribute/resources/Excel_FormMau.xlsx;scan_attribute/resources" `
+            --add-data "scan_attribute/resources/QNH_ThongTinDoDac.xlsx;scan_attribute/resources" `
             --collect-all rapidocr_onnxruntime `
             --collect-all pypdfium2 `
             scan_attribute/main.py
@@ -50,6 +51,7 @@ jobs:
           pyinstaller --noconfirm --onefile --windowed `
             --name ScanAttribute-Standalone `
             --add-data "scan_attribute/resources/Excel_FormMau.xlsx;scan_attribute/resources" `
+            --add-data "scan_attribute/resources/QNH_ThongTinDoDac.xlsx;scan_attribute/resources" `
             --collect-all rapidocr_onnxruntime `
             --collect-all pypdfium2 `
             scan_attribute/main.py
@@ -121,6 +123,7 @@ jobs:
           pyinstaller --noconfirm --onedir --windowed \
             --name ScanAttribute \
             --add-data "scan_attribute/resources/Excel_FormMau.xlsx:scan_attribute/resources" \
+            --add-data "scan_attribute/resources/QNH_ThongTinDoDac.xlsx:scan_attribute/resources" \
             --collect-all rapidocr_onnxruntime \
             --collect-all pypdfium2 \
             scan_attribute/main.py
@@ -130,6 +133,7 @@ jobs:
           pyinstaller --noconfirm --onefile --windowed \
             --name ScanAttribute-Standalone-Linux \
             --add-data "scan_attribute/resources/Excel_FormMau.xlsx:scan_attribute/resources" \
+            --add-data "scan_attribute/resources/QNH_ThongTinDoDac.xlsx:scan_attribute/resources" \
             --collect-all rapidocr_onnxruntime \
             --collect-all pypdfium2 \
             scan_attribute/main.py

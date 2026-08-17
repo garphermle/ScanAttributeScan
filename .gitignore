@@ -30,7 +30,11 @@ MANIFEST
 #   Usually these files are written by a python script from a template
 #   before PyInstaller builds the exe, so as to inject date/other infos into it.
 *.manifest
-*.spec
+*.zip
+*.tar.gz
+*.log
+.scan_attribute_history.json
+Copy of QNH_ThongTinDoDac.xlsx
 
 # Installer logs
 pip-log.txt

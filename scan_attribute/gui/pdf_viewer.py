@@ -146,6 +146,7 @@ class PDFPageCanvas(QGraphicsView):
 
 class PDFViewerWidget(QWidget):
     ocr_text_captured = Signal(str)
+    pdf_tab_changed = Signal(str)  # Emits pdf filename when user switches tab
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -272,7 +273,7 @@ class PDFViewerWidget(QWidget):
         self.tab_bar.setCurrentIndex(0)
         self._load_current_tab_pdf()
 
-    def load_folder_pdfs(self, folder_path: str):
+    def load_folder_pdfs(self, folder_path: str, select_filename: str = ""):
         self.current_folder = folder_path
         self.tab_bar.blockSignals(True)
         self.tab_bar.clear()
@@ -298,6 +299,7 @@ class PDFViewerWidget(QWidget):
         other_files = [f for f in pdf_files if f not in gcn_files and f not in gt_files and f not in gtk_files]
 
         ordered_pdfs = gcn_files + gt_files + gtk_files + other_files
+        target_tab_idx = 0
 
         for idx, f in enumerate(ordered_pdfs):
             full_path = os.path.join(folder_path, f)
@@ -313,15 +315,33 @@ class PDFViewerWidget(QWidget):
             self.tab_bar.tabBar().setTabData(idx, full_path)
             self.pdf_file_map[idx] = full_path
 
+            if select_filename and f.lower() == select_filename.lower():
+                target_tab_idx = idx
+
         self.tab_bar.blockSignals(False)
 
         if self.tab_bar.count() > 0:
-            self.tab_bar.setCurrentIndex(0)
+            self.tab_bar.setCurrentIndex(target_tab_idx)
             self._load_current_tab_pdf()
+
+    def select_pdf_tab_by_name(self, filename: str) -> bool:
+        """Selects tab matching filename (e.g. CU 491118-GT.pdf). Returns True if found."""
+        if not filename:
+            return False
+        fn_clean = os.path.basename(filename).lower()
+        for idx in range(self.tab_bar.count()):
+            tab_path = self.pdf_file_map.get(idx) or self.tab_bar.tabBar().tabData(idx)
+            if tab_path and os.path.basename(tab_path).lower() == fn_clean:
+                if self.tab_bar.currentIndex() != idx:
+                    self.tab_bar.setCurrentIndex(idx)
+                return True
+        return False
 
     def _on_tab_changed(self, index: int):
         if index >= 0:
             self._load_current_tab_pdf()
+            if self.current_pdf_path:
+                self.pdf_tab_changed.emit(os.path.basename(self.current_pdf_path))
 
     def _load_current_tab_pdf(self):
         idx = self.tab_bar.currentIndex()

@@ -46,15 +46,19 @@ class ExcelEngine:
             self.initialize(force_reload=True)
 
     def find_row_by_serial(self, serial: str) -> Optional[int]:
-        """Finds row index (1-based) matching Serial (Col 2) or Folder Name (Col 183)."""
+        """Finds row index (1-based) matching Serial (Col 2), File Ref (Col 3), or Folder Name (Col 183)."""
         if not self.ws:
             self.initialize()
             
         serial_clean = serial.strip().lower()
+        if not serial_clean:
+            return None
+
         for r in range(5, self.ws.max_row + 1):
             val_col2 = str(self.ws.cell(r, 2).value or '').strip().lower()
+            val_col3 = str(self.ws.cell(r, 3).value or '').strip().lower()
             val_col183 = str(self.ws.cell(r, 183).value or '').strip().lower()
-            if val_col2 == serial_clean or val_col183 == serial_clean:
+            if val_col2 == serial_clean or val_col3 == serial_clean or val_col183 == serial_clean:
                 return r
         return None
 
@@ -85,9 +89,10 @@ class ExcelEngine:
         for r in range(5, self.ws.max_row + 1):
             col1 = self.ws.cell(r, 1).value
             val_col2 = str(self.ws.cell(r, 2).value or '').strip()
+            val_col3 = str(self.ws.cell(r, 3).value or '').strip()
             val_col183 = str(self.ws.cell(r, 183).value or '').strip()
 
-            serial = val_col2 or val_col183
+            serial = val_col2 or val_col3 or val_col183
             if serial:
                 stt_val = col1 if (col1 is not None and str(col1).strip() != "") else (r - 4)
                 info_map[serial.lower()] = {
@@ -116,15 +121,17 @@ class ExcelEngine:
             data[c] = "" if val is None else val
         return data
 
-    def save_row_data(self, serial: str, attr_dict: Dict[int, Any]) -> int:
+    def save_row_data(self, serial: str, attr_dict: Dict[int, Any], target_row: Optional[int] = None) -> int:
         """
-        Saves row for serial. If serial exists, updates existing row.
+        Saves row for serial or file. If target_row is provided or serial exists, updates that row.
         If serial is new, appends a NEW ROW directly below existing rows.
         """
         if not self.ws:
             self.initialize()
             
-        row_idx = self.find_row_by_serial(serial)
+        row_idx = target_row
+        if not row_idx:
+            row_idx = self.find_row_by_serial(serial)
         if not row_idx:
             row_idx = self.find_first_empty_row()
         
@@ -132,8 +139,10 @@ class ExcelEngine:
         stt_val = row_idx - 4
         self.ws.cell(row_idx, 1, value=stt_val)
         
-        attr_dict[2] = serial
-        attr_dict[183] = serial
+        if 2 not in attr_dict or not attr_dict[2]:
+            attr_dict[2] = serial
+        if 183 not in attr_dict or not attr_dict[183]:
+            attr_dict[183] = serial
 
         for c, val in attr_dict.items():
             if 1 <= c <= 186:
