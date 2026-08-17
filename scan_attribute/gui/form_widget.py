@@ -264,6 +264,7 @@ class AttributeFormWidget(QWidget):
 
         self.txt_barcode = QLineEdit()
         self.txt_barcode.setPlaceholderText("Ví dụ: 0667320081887")
+        self.txt_barcode.textChanged.connect(self._auto_sync_ma_hs_goc)
         self._register_input(4, self.txt_barcode)
         self.active_input_widget = self.txt_barcode
 
@@ -337,6 +338,13 @@ class AttributeFormWidget(QWidget):
         form.addRow("Ghi chú T2 (110):", self.txt_ghi_chu_t2)
 
         return self._create_scroll_area(container)
+
+    def _auto_sync_ma_hs_goc(self, text: str):
+        clean = text.strip()
+        if len(clean) >= 6:
+            self.txt_ma_hs.setText(clean[-6:])
+        elif clean:
+            self.txt_ma_hs.setText(clean)
 
     def _auto_sync_ngay_cap(self, text: str):
         if not self.txt_ngay_cap.text() or self.txt_ngay_cap.text() == text[:-1]:

@@ -334,7 +334,17 @@ def test_spouse_defaults_and_manual_address(qapp):
     assert attrs.get(39) == "Khu 3, Phường Hồng Hải, Thành phố Hạ Long, Tỉnh Quảng Ninh"
 
 
+def test_ma_hs_goc_auto_sync_from_barcode(qapp):
+    from scan_attribute.gui.form_widget import AttributeFormWidget
+    md = MasterDataManager()
+    template_path = get_default_excel_path()
+    md.load_from_excel(template_path)
+    fw = AttributeFormWidget(md)
 
+    # Set barcode with 13 digits
+    fw.txt_barcode.setText("0667320081887")
+    assert fw.txt_ma_hs.text() == "081887"
 
-
-
+    attrs = fw.get_attr_dict()
+    assert attrs.get(3) == "081887"
+    assert attrs.get(4) == "0667320081887"
