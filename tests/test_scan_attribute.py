@@ -394,3 +394,27 @@ def test_load_attr_dict_preserves_defaults(qapp):
     assert fw.txt_mdsd1_thoi_han.text() == "Lâu dài"
 
 
+def test_birth_date_and_year_auto_sync(qapp):
+    from scan_attribute.gui.form_widget import AttributeFormWidget
+    md = MasterDataManager()
+    template_path = get_default_excel_path()
+    md.load_from_excel(template_path)
+    fw = AttributeFormWidget(md)
+
+    # Chủ: Col 11 (Ngày tháng năm sinh) -> Col 12 (Năm sinh)
+    fw.txt_chu_ngay_sinh.setText("15/08/1975")
+    assert fw.txt_chu_nam_sinh.text() == "1975"
+
+    # Vợ: Col 28 (Ngày tháng năm sinh) -> Col 29 (Năm sinh)
+    fw.chk_has_spouse.setChecked(True)
+    fw.txt_vo_ngay_sinh.setText("20/10/1982")
+    assert fw.txt_vo_nam_sinh.text() == "1982"
+
+    attrs = fw.get_attr_dict()
+    assert attrs.get(11) == "15/08/1975"
+    assert attrs.get(12) == "1975"
+    assert attrs.get(28) == "20/10/1982"
+    assert attrs.get(29) == "1982"
+
+
+

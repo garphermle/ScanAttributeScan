@@ -139,8 +139,8 @@ class AttributeFormWidget(QWidget):
     def _highlight_active_field(self, target_widget, col_idx: int):
         field_names = {
             2: "Số Serial", 3: "Mã HS Gốc", 4: "Mã vạch",
-            6: "ĐTSD", 7: "HGD", 8: "Người đại diện", 9: "Họ tên Chủ", 13: "Loại GT", 14: "Số GT/CCCD Chủ", 19: "Tổ/Khu Chủ", 20: "Mã Xã Chủ", 21: "Xã/Huyện/Tỉnh Chủ", 22: "Địa chỉ đầy đủ Chủ",
-            26: "Họ tên Vợ/Chồng", 30: "Loại GT Vợ/Chồng", 31: "CCCD Vợ/Chồng", 36: "Tổ/Khu Vợ/Chồng", 37: "Mã Xã Vợ/Chồng", 38: "Xã/Huyện/Tỉnh Vợ/Chồng", 39: "Địa chỉ đầy đủ Vợ/Chồng", 41: "Dân tộc Vợ/Chồng", 42: "Quốc tịch Vợ/Chồng",
+            6: "ĐTSD", 7: "HGD", 8: "Người đại diện", 9: "Họ tên Chủ", 10: "Giới tính Chủ", 11: "Ngày sinh Chủ", 12: "Năm sinh Chủ", 13: "Loại GT", 14: "Số GT/CCCD Chủ", 19: "Tổ/Khu Chủ", 20: "Mã Xã Chủ", 21: "Xã/Huyện/Tỉnh Chủ", 22: "Địa chỉ đầy đủ Chủ",
+            26: "Họ tên Vợ/Chồng", 27: "Giới tính Vợ/Chồng", 28: "Ngày sinh Vợ/Chồng", 29: "Năm sinh Vợ/Chồng", 30: "Loại GT Vợ/Chồng", 31: "CCCD Vợ/Chồng", 36: "Tổ/Khu Vợ/Chồng", 37: "Mã Xã Vợ/Chồng", 38: "Xã/Huyện/Tỉnh Vợ/Chồng", 39: "Địa chỉ đầy đủ Vợ/Chồng", 41: "Dân tộc Vợ/Chồng", 42: "Quốc tịch Vợ/Chồng",
             43: "Số thửa", 44: "Số tờ", 46: "Loại bản đồ", 47: "Đơn vị đo", 48: "Phương pháp đo", 49: "Mức độ chính xác", 50: "Ngày hoàn thành",
             52: "Diện tích bản đồ", 53: "Diện tích pháp lý",
             54: "MĐSD 1", 56: "Diện tích 1", 60: "Mã nguồn gốc 1", 61: "Nguồn gốc chi tiết 1",
@@ -356,6 +356,20 @@ class AttributeFormWidget(QWidget):
         if not self.txt_ngay_cap.text() or self.txt_ngay_cap.text() == text[:-1]:
             self.txt_ngay_cap.setText(text)
 
+    def _auto_sync_chu_nam_sinh(self, text: str):
+        clean = text.strip()
+        if len(clean) >= 4:
+            year_part = clean[-4:]
+            if year_part.isdigit() and (not self.txt_chu_nam_sinh.text() or len(self.txt_chu_nam_sinh.text()) != 4):
+                self.txt_chu_nam_sinh.setText(year_part)
+
+    def _auto_sync_vo_nam_sinh(self, text: str):
+        clean = text.strip()
+        if len(clean) >= 4:
+            year_part = clean[-4:]
+            if year_part.isdigit() and (not self.txt_vo_nam_sinh.text() or len(self.txt_vo_nam_sinh.text()) != 4):
+                self.txt_vo_nam_sinh.setText(year_part)
+
     # -------------------------------------------------------------
     # TAB 2: CHỦ SỬ DỤNG (Cols 5-25)
     # -------------------------------------------------------------
@@ -399,12 +413,14 @@ class AttributeFormWidget(QWidget):
         self.cmb_chu_gioitinh.setCurrentText("Nam")
         self._register_input(10, self.cmb_chu_gioitinh)
 
-        self.txt_chu_namsinh = QLineEdit()
-        self.txt_chu_namsinh.setPlaceholderText("Ví dụ: 1980")
-        self._register_input(11, self.txt_chu_namsinh)
+        self.txt_chu_ngay_sinh = QLineEdit()
+        self.txt_chu_ngay_sinh.setPlaceholderText("Ví dụ: 15/08/1980")
+        self.txt_chu_ngay_sinh.textChanged.connect(self._auto_sync_chu_nam_sinh)
+        self._register_input(11, self.txt_chu_ngay_sinh)
 
-        self.txt_chu_nammat = QLineEdit()
-        self._register_input(12, self.txt_chu_nammat)
+        self.txt_chu_nam_sinh = QLineEdit()
+        self.txt_chu_nam_sinh.setPlaceholderText("Ví dụ: 1980")
+        self._register_input(12, self.txt_chu_nam_sinh)
 
         # Loại GT: lấy mã viết tắt CCCD, CMND, HC, GKS, QD, K
         self.cmb_chu_id_type = SearchableComboBox()
@@ -467,8 +483,8 @@ class AttributeFormWidget(QWidget):
         form.addRow("Đại diện (8):", self.cmb_chu_daidien)
         form.addRow("Họ tên Chủ (9):", self.txt_chu_name)
         form.addRow("Giới tính (10):", self.cmb_chu_gioitinh)
-        form.addRow("Năm sinh (11):", self.txt_chu_namsinh)
-        form.addRow("Năm mất (12):", self.txt_chu_nammat)
+        form.addRow("Ngày sinh (11):", self.txt_chu_ngay_sinh)
+        form.addRow("Năm sinh (12):", self.txt_chu_nam_sinh)
         form.addRow("Loại GT (13):", self.cmb_chu_id_type)
         form.addRow("Số GT/CCCD (14):", self.txt_chu_id_num)
         form.addRow("Ngày cấp (15):", self.txt_chu_id_date)
@@ -508,11 +524,14 @@ class AttributeFormWidget(QWidget):
         self.cmb_vo_gioitinh.setCurrentText("Nữ")
         self._register_input(27, self.cmb_vo_gioitinh)
 
-        self.txt_vo_namsinh = QLineEdit()
-        self._register_input(28, self.txt_vo_namsinh)
+        self.txt_vo_ngay_sinh = QLineEdit()
+        self.txt_vo_ngay_sinh.setPlaceholderText("Ví dụ: 20/10/1982")
+        self.txt_vo_ngay_sinh.textChanged.connect(self._auto_sync_vo_nam_sinh)
+        self._register_input(28, self.txt_vo_ngay_sinh)
 
-        self.txt_vo_nammat = QLineEdit()
-        self._register_input(29, self.txt_vo_nammat)
+        self.txt_vo_nam_sinh = QLineEdit()
+        self.txt_vo_nam_sinh.setPlaceholderText("Ví dụ: 1982")
+        self._register_input(29, self.txt_vo_nam_sinh)
 
         self.cmb_vo_id_type = SearchableComboBox()
         for code, label in self.master_data.id_types:
@@ -573,8 +592,8 @@ class AttributeFormWidget(QWidget):
 
         form.addRow("Họ tên VC (26):", self.txt_vo_name)
         form.addRow("Giới tính (27):", self.cmb_vo_gioitinh)
-        form.addRow("Năm sinh (28):", self.txt_vo_namsinh)
-        form.addRow("Năm mất (29):", self.txt_vo_nammat)
+        form.addRow("Ngày sinh (28):", self.txt_vo_ngay_sinh)
+        form.addRow("Năm sinh (29):", self.txt_vo_nam_sinh)
         form.addRow("Loại GT (30):", self.cmb_vo_id_type)
         form.addRow("Số GT/CCCD (31):", self.txt_vo_id_num)
         form.addRow("Ngày cấp (32):", self.txt_vo_id_date)
