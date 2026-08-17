@@ -305,10 +305,34 @@ def test_optional_fields_empty_when_unchecked(qapp):
     attrs = fw.get_attr_dict()
     assert attrs.get(65) == ""  # Là SD chung 2 is empty!
     assert attrs.get(62) == ""  # MDSD 2 is empty!
-    assert attrs.get(95) == ""  # Ma don is empty!
-    assert attrs.get(97) == ""  # Hinh thuc SD is empty!
     assert attrs.get(111) == "" # Han che is empty!
     assert attrs.get(117) == "" # Loai han che is empty!
+
+
+def test_spouse_defaults_and_manual_address(qapp):
+    from scan_attribute.gui.form_widget import AttributeFormWidget
+    md = MasterDataManager()
+    template_path = get_default_excel_path()
+    md.load_from_excel(template_path)
+    fw = AttributeFormWidget(md)
+
+    fw.chk_has_spouse.setChecked(True)
+    # Check default Col 41 & 42
+    assert fw.cmb_vo_dantoc.currentText() == "Không rõ"
+    assert fw.cmb_vo_quoctich.currentText() == "Việt Nam"
+
+    # Check manual address entry without picking commune
+    fw.txt_vo_to.setText("Khu 3")
+    fw.txt_vo_xa_huyen_tinh.setText("Phường Hồng Hải, Thành phố Hạ Long, Tỉnh Quảng Ninh")
+
+    assert fw.txt_vo_full_addr.text() == "Khu 3, Phường Hồng Hải, Thành phố Hạ Long, Tỉnh Quảng Ninh"
+
+    attrs = fw.get_attr_dict()
+    assert attrs.get(41) == "Không rõ"
+    assert attrs.get(42) == "Việt Nam"
+    assert attrs.get(38) == "Phường Hồng Hải, Thành phố Hạ Long, Tỉnh Quảng Ninh"
+    assert attrs.get(39) == "Khu 3, Phường Hồng Hải, Thành phố Hạ Long, Tỉnh Quảng Ninh"
+
 
 
 

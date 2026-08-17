@@ -139,14 +139,14 @@ class AttributeFormWidget(QWidget):
     def _highlight_active_field(self, target_widget, col_idx: int):
         field_names = {
             2: "Số Serial", 3: "Mã HS Gốc", 4: "Mã vạch",
-            6: "ĐTSD", 7: "HGD", 8: "Người đại diện", 9: "Họ tên Chủ", 13: "Loại GT", 14: "Số GT/CCCD Chủ", 19: "Tổ/Khu Chủ", 20: "Mã Xã Chủ",
-            26: "Họ tên Vợ/Chồng", 30: "Loại GT Vợ/Chồng", 31: "CCCD Vợ/Chồng", 36: "Tổ/Khu Vợ/Chồng",
-            43: "Số thửa", 44: "Số tờ", 46: "Loại bản đồ", 47: "Đơn vị đo", 48: "Phương pháp đo", 49: "Người kiểm tra", 50: "Ngày hoàn thành",
+            6: "ĐTSD", 7: "HGD", 8: "Người đại diện", 9: "Họ tên Chủ", 13: "Loại GT", 14: "Số GT/CCCD Chủ", 19: "Tổ/Khu Chủ", 20: "Mã Xã Chủ", 21: "Xã/Huyện/Tỉnh Chủ", 22: "Địa chỉ đầy đủ Chủ",
+            26: "Họ tên Vợ/Chồng", 30: "Loại GT Vợ/Chồng", 31: "CCCD Vợ/Chồng", 36: "Tổ/Khu Vợ/Chồng", 37: "Mã Xã Vợ/Chồng", 38: "Xã/Huyện/Tỉnh Vợ/Chồng", 39: "Địa chỉ đầy đủ Vợ/Chồng", 41: "Dân tộc Vợ/Chồng", 42: "Quốc tịch Vợ/Chồng",
+            43: "Số thửa", 44: "Số tờ", 46: "Loại bản đồ", 47: "Đơn vị đo", 48: "Phương pháp đo", 49: "Mức độ chính xác", 50: "Ngày hoàn thành",
             52: "Diện tích bản đồ", 53: "Diện tích pháp lý",
             54: "MĐSD 1", 56: "Diện tích 1", 60: "Mã nguồn gốc 1", 61: "Nguồn gốc chi tiết 1",
             62: "MĐSD 2", 64: "Diện tích 2", 68: "Mã nguồn gốc 2", 69: "Nguồn gốc chi tiết 2",
             70: "MĐSD 3", 72: "Diện tích 3", 76: "Mã nguồn gốc 3", 77: "Nguồn gốc chi tiết 3",
-            90: "Tổ/Khu Thửa đất", 91: "Mã Xã Thửa đất", 94: "Địa chỉ thửa đất",
+            90: "Tổ/Khu Thửa đất", 91: "Mã Xã Thửa đất", 92: "Xã/Huyện/Tỉnh Thửa đất", 94: "Địa chỉ thửa đất",
             99: "Loại GCN", 100: "Số vào sổ", 102: "Ngày ký GCN", 103: "Người ký", 104: "Ủy quyền ký", 105: "Ký thay", 106: "Ngày cấp", 110: "Ghi chú T2",
             118: "Loại NVTC", 119: "Số tiền NVTC", 183: "Thư mục lưu HSQ"
         }
@@ -426,7 +426,8 @@ class AttributeFormWidget(QWidget):
         self._register_input(20, self.cmb_chu_xa)
 
         self.txt_chu_xa_huyen_tinh = QLineEdit()
-        self.txt_chu_xa_huyen_tinh.setReadOnly(True)
+        self.txt_chu_xa_huyen_tinh.setPlaceholderText("Xã/Phường, Quận/Huyện, Tỉnh/TP")
+        self.txt_chu_xa_huyen_tinh.textChanged.connect(self._update_chu_full_address)
         self._register_input(21, self.txt_chu_xa_huyen_tinh)
 
         self.txt_chu_full_addr = QLineEdit()
@@ -530,22 +531,29 @@ class AttributeFormWidget(QWidget):
         self._register_input(37, self.cmb_vo_xa)
 
         self.txt_vo_xa_huyen_tinh = QLineEdit()
-        self.txt_vo_xa_huyen_tinh.setReadOnly(True)
+        self.txt_vo_xa_huyen_tinh.setPlaceholderText("Xã/Phường, Quận/Huyện, Tỉnh/TP")
+        self.txt_vo_xa_huyen_tinh.textChanged.connect(self._update_vo_full_address)
         self._register_input(38, self.txt_vo_xa_huyen_tinh)
 
         self.txt_vo_full_addr = QLineEdit()
+        self.txt_vo_full_addr.setPlaceholderText("Địa chỉ đầy đủ của Vợ / Chồng")
         self._register_input(39, self.txt_vo_full_addr)
 
         self.txt_vo_phone = QLineEdit()
         self._register_input(40, self.txt_vo_phone)
 
         self.cmb_vo_dantoc = SearchableComboBox()
-        self.cmb_vo_dantoc.addItems(self.master_data.ethnicities)
-        self.cmb_vo_dantoc.setCurrentText("Kinh")
+        if "Không rõ" not in self.master_data.ethnicities:
+            self.cmb_vo_dantoc.addItem("Không rõ", "Không rõ")
+        for e in self.master_data.ethnicities:
+            if e != "Không rõ":
+                self.cmb_vo_dantoc.addItem(e, e)
+        self.cmb_vo_dantoc.setCurrentText("Không rõ")
         self._register_input(41, self.cmb_vo_dantoc)
 
         self.cmb_vo_quoctich = SearchableComboBox()
-        self.cmb_vo_quoctich.addItems(self.master_data.nationalities)
+        for n in self.master_data.nationalities:
+            self.cmb_vo_quoctich.addItem(n, n)
         self.cmb_vo_quoctich.setCurrentText("Việt Nam")
         self._register_input(42, self.cmb_vo_quoctich)
 
@@ -649,7 +657,7 @@ class AttributeFormWidget(QWidget):
         f_top.addRow("Loại BĐ (46):", self.cmb_loai_bando)
         f_top.addRow("Đơn vị đo (47):", self.cmb_don_vi_do)
         f_top.addRow("PP đo (48):", self.txt_phuong_phap_do)
-        f_top.addRow("Người KT (49):", self.txt_nguoi_kiem_tra)
+        f_top.addRow("Mức độ chính xác (49):", self.txt_nguoi_kiem_tra)
         f_top.addRow("Ngày xong (50):", self.txt_ngay_hoan_thanh)
         f_top.addRow("Phân loại (51):", self.cmb_phan_loai_thua)
         f_top.addRow("DT bản đồ (52):", self.txt_dt_bando)
@@ -830,7 +838,8 @@ class AttributeFormWidget(QWidget):
         self._register_input(91, self.cmb_thua_xa)
 
         self.txt_thua_xa_huyen_tinh = QLineEdit()
-        self.txt_thua_xa_huyen_tinh.setReadOnly(True)
+        self.txt_thua_xa_huyen_tinh.setPlaceholderText("Xã/Phường, Quận/Huyện, Tỉnh/TP")
+        self.txt_thua_xa_huyen_tinh.textChanged.connect(self._update_thua_full_address)
         self._register_input(92, self.txt_thua_xa_huyen_tinh)
 
         self.txt_thua_full_addr = QLineEdit()
