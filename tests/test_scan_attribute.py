@@ -269,15 +269,24 @@ def test_nguon_goc_chi_tiet_auto_sync(qapp):
     md.load_from_excel(template_path)
     fw = AttributeFormWidget(md)
 
-    # Select CNQ-CTT in Col 60
-    idx = fw.cmb_mdsd1_ma_nguon_goc.findData("CNQ-CTT")
-    assert idx >= 0
-    fw.cmb_mdsd1_ma_nguon_goc.setCurrentIndex(idx)
-    assert "Công nhận QSDĐ như giao đất có thu tiền sử dụng đất" in fw.txt_mdsd1_nguon_goc_ct.text()
+    # 1. Select CNQ-CTT in Col 60 only
+    idx60 = fw.cmb_mdsd1_ma_nguon_goc.findData("CNQ-CTT")
+    assert idx60 >= 0
+    fw.cmb_mdsd1_ma_nguon_goc.setCurrentIndex(idx60)
+    assert fw.txt_mdsd1_nguon_goc_ct.text() == "Công nhận QSDĐ như giao đất có thu tiền sử dụng đất"
+
+    # 2. Select DT-THN in Col 59
+    idx59 = fw.cmb_mdsd1_nguon_goc.findData("DT-THN")
+    assert idx59 >= 0
+    fw.cmb_mdsd1_nguon_goc.setCurrentIndex(idx59)
+
+    expected = "Nhà nước cho thuê đất trả tiền hàng năm, Công nhận QSDĐ như giao đất có thu tiền sử dụng đất"
+    assert fw.txt_mdsd1_nguon_goc_ct.text() == expected
 
     attrs = fw.get_attr_dict()
+    assert attrs.get(59) == "DT-THN"
     assert attrs.get(60) == "CNQ-CTT"
-    assert attrs.get(61) == "Công nhận QSDĐ như giao đất có thu tiền sử dụng đất"
+    assert attrs.get(61) == expected
 
 
 def test_measurement_data_lookup_col_47_50(qapp):

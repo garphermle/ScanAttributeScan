@@ -698,8 +698,10 @@ class AttributeFormWidget(QWidget):
         self.txt_mdsd1_thoi_han = QLineEdit("Lâu dài")
         self._register_input(58, self.txt_mdsd1_thoi_han)
 
-        self.txt_mdsd1_nguon_goc = QLineEdit()
-        self._register_input(59, self.txt_mdsd1_nguon_goc)
+        self.cmb_mdsd1_nguon_goc = SearchableComboBox()
+        self._populate_land_use_origins(self.cmb_mdsd1_nguon_goc)
+        self.cmb_mdsd1_nguon_goc.currentIndexChanged.connect(self._on_mdsd1_origin_changed)
+        self._register_input(59, self.cmb_mdsd1_nguon_goc)
 
         self.cmb_mdsd1_ma_nguon_goc = SearchableComboBox()
         self._populate_land_use_origins(self.cmb_mdsd1_ma_nguon_goc)
@@ -714,7 +716,7 @@ class AttributeFormWidget(QWidget):
         f1.addRow("Diện tích (56):", self.txt_mdsd1_dt)
         f1.addRow("Là SD chung (57):", self.cmb_mdsd1_sdc)
         f1.addRow("Thời hạn SD (58):", self.txt_mdsd1_thoi_han)
-        f1.addRow("Nguồn gốc (59):", self.txt_mdsd1_nguon_goc)
+        f1.addRow("Nguồn gốc BĐ (59):", self.cmb_mdsd1_nguon_goc)
         f1.addRow("Mã N.gốc (60):", self.cmb_mdsd1_ma_nguon_goc)
         f1.addRow("N.gốc CT (61):", self.txt_mdsd1_nguon_goc_ct)
         root_vbox.addWidget(grp1)
@@ -749,8 +751,10 @@ class AttributeFormWidget(QWidget):
         self.txt_mdsd2_thoi_han = QLineEdit()
         self._register_input(66, self.txt_mdsd2_thoi_han)
 
-        self.txt_mdsd2_nguon_goc = QLineEdit()
-        self._register_input(67, self.txt_mdsd2_nguon_goc)
+        self.cmb_mdsd2_nguon_goc = SearchableComboBox()
+        self._populate_land_use_origins(self.cmb_mdsd2_nguon_goc)
+        self.cmb_mdsd2_nguon_goc.currentIndexChanged.connect(self._on_mdsd2_origin_changed)
+        self._register_input(67, self.cmb_mdsd2_nguon_goc)
 
         self.cmb_mdsd2_ma_nguon_goc = SearchableComboBox()
         self._populate_land_use_origins(self.cmb_mdsd2_ma_nguon_goc)
@@ -765,7 +769,7 @@ class AttributeFormWidget(QWidget):
         f2.addRow("Diện tích 2 (64):", self.txt_mdsd2_dt)
         f2.addRow("Là SD chung (65):", self.cmb_mdsd2_sdc)
         f2.addRow("Thời hạn 2 (66):", self.txt_mdsd2_thoi_han)
-        f2.addRow("Nguồn gốc 2 (67):", self.txt_mdsd2_nguon_goc)
+        f2.addRow("Nguồn gốc BĐ 2 (67):", self.cmb_mdsd2_nguon_goc)
         f2.addRow("Mã N.gốc 2 (68):", self.cmb_mdsd2_ma_nguon_goc)
         f2.addRow("N.gốc CT 2 (69):", self.txt_mdsd2_nguon_goc_ct)
         self._toggle_mdsd2_fields(False)
@@ -801,8 +805,10 @@ class AttributeFormWidget(QWidget):
         self.txt_mdsd3_thoi_han = QLineEdit()
         self._register_input(74, self.txt_mdsd3_thoi_han)
 
-        self.txt_mdsd3_nguon_goc = QLineEdit()
-        self._register_input(75, self.txt_mdsd3_nguon_goc)
+        self.cmb_mdsd3_nguon_goc = SearchableComboBox()
+        self._populate_land_use_origins(self.cmb_mdsd3_nguon_goc)
+        self.cmb_mdsd3_nguon_goc.currentIndexChanged.connect(self._on_mdsd3_origin_changed)
+        self._register_input(75, self.cmb_mdsd3_nguon_goc)
 
         self.cmb_mdsd3_ma_nguon_goc = SearchableComboBox()
         self._populate_land_use_origins(self.cmb_mdsd3_ma_nguon_goc)
@@ -817,7 +823,7 @@ class AttributeFormWidget(QWidget):
         f3.addRow("Diện tích 3 (72):", self.txt_mdsd3_dt)
         f3.addRow("Là SD chung (73):", self.cmb_mdsd3_sdc)
         f3.addRow("Thời hạn 3 (74):", self.txt_mdsd3_thoi_han)
-        f3.addRow("Nguồn gốc 3 (75):", self.txt_mdsd3_nguon_goc)
+        f3.addRow("Nguồn gốc BĐ 3 (75):", self.cmb_mdsd3_nguon_goc)
         f3.addRow("Mã N.gốc 3 (76):", self.cmb_mdsd3_ma_nguon_goc)
         f3.addRow("N.gốc CT 3 (77):", self.txt_mdsd3_nguon_goc_ct)
         self._toggle_mdsd3_fields(False)
@@ -916,25 +922,41 @@ class AttributeFormWidget(QWidget):
         if code:
             self.txt_mdsd3_kh.setText(str(code))
 
-    def _on_mdsd1_origin_changed(self, idx: int):
-        code = str(self.cmb_mdsd1_ma_nguon_goc.currentData() or "")
-        name = self.master_data.land_use_origins_by_code.get(code, "")
-        if name:
-            self.txt_mdsd1_nguon_goc_ct.setText(name)
-            if not self.txt_mdsd1_nguon_goc.text():
-                self.txt_mdsd1_nguon_goc.setText(name)
+    def _on_mdsd1_origin_changed(self, *args):
+        code59 = str(self.cmb_mdsd1_nguon_goc.currentData() or "")
+        code60 = str(self.cmb_mdsd1_ma_nguon_goc.currentData() or "")
+        name59 = self.master_data.land_use_origins_by_code.get(code59, "")
+        name60 = self.master_data.land_use_origins_by_code.get(code60, "")
+        parts = []
+        if name59:
+            parts.append(name59)
+        if name60:
+            parts.append(name60)
+        self.txt_mdsd1_nguon_goc_ct.setText(", ".join(parts))
 
-    def _on_mdsd2_origin_changed(self, idx: int):
-        code = str(self.cmb_mdsd2_ma_nguon_goc.currentData() or "")
-        name = self.master_data.land_use_origins_by_code.get(code, "")
-        if name:
-            self.txt_mdsd2_nguon_goc_ct.setText(name)
+    def _on_mdsd2_origin_changed(self, *args):
+        code67 = str(self.cmb_mdsd2_nguon_goc.currentData() or "")
+        code68 = str(self.cmb_mdsd2_ma_nguon_goc.currentData() or "")
+        name67 = self.master_data.land_use_origins_by_code.get(code67, "")
+        name68 = self.master_data.land_use_origins_by_code.get(code68, "")
+        parts = []
+        if name67:
+            parts.append(name67)
+        if name68:
+            parts.append(name68)
+        self.txt_mdsd2_nguon_goc_ct.setText(", ".join(parts))
 
-    def _on_mdsd3_origin_changed(self, idx: int):
-        code = str(self.cmb_mdsd3_ma_nguon_goc.currentData() or "")
-        name = self.master_data.land_use_origins_by_code.get(code, "")
-        if name:
-            self.txt_mdsd3_nguon_goc_ct.setText(name)
+    def _on_mdsd3_origin_changed(self, *args):
+        code75 = str(self.cmb_mdsd3_nguon_goc.currentData() or "")
+        code76 = str(self.cmb_mdsd3_ma_nguon_goc.currentData() or "")
+        name75 = self.master_data.land_use_origins_by_code.get(code75, "")
+        name76 = self.master_data.land_use_origins_by_code.get(code76, "")
+        parts = []
+        if name75:
+            parts.append(name75)
+        if name76:
+            parts.append(name76)
+        self.txt_mdsd3_nguon_goc_ct.setText(", ".join(parts))
 
     def _toggle_mdsd2_fields(self, enabled: bool):
         for col in range(62, 70):
@@ -1497,7 +1519,7 @@ class AttributeFormWidget(QWidget):
                             break
                     if not matched:
                         widget.setCurrentText(val)
-                elif col in [6, 7, 8, 10, 13, 27, 30, 46, 51, 54, 57, 60, 62, 65, 68, 70, 73, 76, 97, 98, 104, 105, 117]:
+                elif col in [6, 7, 8, 10, 13, 27, 30, 46, 51, 54, 57, 59, 60, 62, 65, 67, 68, 70, 73, 75, 76, 97, 98, 104, 105, 117]:
                     # Normalize ID type abbreviations
                     if col in (13, 30):
                         if "chứng minh" in val.lower():
