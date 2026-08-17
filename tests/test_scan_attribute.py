@@ -280,7 +280,7 @@ def test_nguon_goc_chi_tiet_auto_sync(qapp):
     assert idx59 >= 0
     fw.cmb_mdsd1_nguon_goc.setCurrentIndex(idx59)
 
-    expected = "Nhà nước cho thuê đất trả tiền hàng năm, Công nhận QSDĐ như giao đất có thu tiền sử dụng đất"
+    expected = "Nhà nước cho thuê đất trả tiền hàng năm Công nhận QSDĐ như giao đất có thu tiền sử dụng đất"
     assert fw.txt_mdsd1_nguon_goc_ct.text() == expected
 
     attrs = fw.get_attr_dict()
@@ -328,7 +328,7 @@ def test_spouse_defaults_and_manual_address(qapp):
     fw.chk_has_spouse.setChecked(True)
     # Check default Col 41 & 42
     assert fw.cmb_vo_dantoc.currentText() == "Không rõ"
-    assert fw.cmb_vo_quoctich.currentText() == "Việt Nam"
+    assert fw.cmb_vo_quoctich.currentText() == "Viet Nam"
 
     # Check manual address entry without picking commune
     fw.txt_vo_to.setText("Khu 3")
@@ -338,7 +338,7 @@ def test_spouse_defaults_and_manual_address(qapp):
 
     attrs = fw.get_attr_dict()
     assert attrs.get(41) == "Không rõ"
-    assert attrs.get(42) == "Việt Nam"
+    assert attrs.get(42) == "Viet Nam"
     assert attrs.get(38) == "Phường Hồng Hải, Thành phố Hạ Long, Tỉnh Quảng Ninh"
     assert attrs.get(39) == "Khu 3, Phường Hồng Hải, Thành phố Hạ Long, Tỉnh Quảng Ninh"
 
@@ -373,4 +373,24 @@ def test_ma_don_auto_sync_from_serial(qapp):
     attrs = fw.get_attr_dict()
     assert attrs.get(2) == "CS 123 456"
     assert attrs.get(95) == "CS123456"
+
+
+def test_load_attr_dict_preserves_defaults(qapp):
+    from scan_attribute.gui.form_widget import AttributeFormWidget
+    md = MasterDataManager()
+    template_path = get_default_excel_path()
+    md.load_from_excel(template_path)
+    fw = AttributeFormWidget(md)
+
+    # Load empty dict
+    fw.load_attr_dict({}, "TEST_SERIAL")
+    assert fw.txt_phuong_phap_do.text() == "Toàn đạc điện tử"
+    assert fw.txt_nguoi_kiem_tra.text() == "Cao"
+    assert fw.cmb_chu_quoctich.currentText() == "Viet Nam"
+    assert fw.cmb_vo_quoctich.currentText() == "Viet Nam"
+    assert fw.cmb_vo_dantoc.currentText() == "Không rõ"
+    assert fw.cmb_chu_dantoc.currentText() == "Kinh"
+    assert fw.txt_tyle.text() == "500"
+    assert fw.txt_mdsd1_thoi_han.text() == "Lâu dài"
+
 

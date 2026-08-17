@@ -148,13 +148,17 @@ class MasterDataManager:
             if 'DM_DanToc' in wb.sheetnames:
                 ws = wb['DM_DanToc']
                 eth = [str(ws.cell(r, 2).value or '').strip() for r in range(2, ws.max_row + 1)]
-                self.ethnicities = [e for e in eth if e]
+                eth = [e for e in eth if e]
+                other_eth = [e for e in eth if e not in ('Kinh', 'Không rõ')]
+                self.ethnicities = ['Kinh', 'Không rõ'] + other_eth
 
             # Load Nationalities
             if 'DM_QuocTich' in wb.sheetnames:
                 ws = wb['DM_QuocTich']
                 nats = [str(ws.cell(r, 2).value or '').strip() for r in range(2, ws.max_row + 1)]
-                self.nationalities = [n for n in nats if n]
+                nats = [n for n in nats if n]
+                other_nats = [n for n in nats if n not in ('Viet Nam', 'Việt Nam', 'Vietnam')]
+                self.nationalities = ['Viet Nam'] + other_nats
 
             # Load Land Use Origins (DM_NguonGocSuDungDat)
             if 'DM_NguonGocSuDungDat' in wb.sheetnames:

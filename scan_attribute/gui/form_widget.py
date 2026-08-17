@@ -458,7 +458,7 @@ class AttributeFormWidget(QWidget):
 
         self.cmb_chu_quoctich = SearchableComboBox()
         self.cmb_chu_quoctich.addItems(self.master_data.nationalities)
-        self.cmb_chu_quoctich.setCurrentText("Việt Nam")
+        self.cmb_chu_quoctich.setCurrentText("Viet Nam")
         self._register_input(25, self.cmb_chu_quoctich)
 
         form.addRow("Mã chủ (5):", self.txt_chu_ma)
@@ -568,7 +568,7 @@ class AttributeFormWidget(QWidget):
         self.cmb_vo_quoctich = SearchableComboBox()
         for n in self.master_data.nationalities:
             self.cmb_vo_quoctich.addItem(n, n)
-        self.cmb_vo_quoctich.setCurrentText("Việt Nam")
+        self.cmb_vo_quoctich.setCurrentText("Viet Nam")
         self._register_input(42, self.cmb_vo_quoctich)
 
         form.addRow("Họ tên VC (26):", self.txt_vo_name)
@@ -938,7 +938,7 @@ class AttributeFormWidget(QWidget):
             parts.append(name59)
         if name60:
             parts.append(name60)
-        self.txt_mdsd1_nguon_goc_ct.setText(", ".join(parts))
+        self.txt_mdsd1_nguon_goc_ct.setText(" ".join(parts))
 
     def _on_mdsd2_origin_changed(self, *args):
         code67 = str(self.cmb_mdsd2_nguon_goc.currentData() or "")
@@ -950,7 +950,7 @@ class AttributeFormWidget(QWidget):
             parts.append(name67)
         if name68:
             parts.append(name68)
-        self.txt_mdsd2_nguon_goc_ct.setText(", ".join(parts))
+        self.txt_mdsd2_nguon_goc_ct.setText(" ".join(parts))
 
     def _on_mdsd3_origin_changed(self, *args):
         code75 = str(self.cmb_mdsd3_nguon_goc.currentData() or "")
@@ -962,7 +962,7 @@ class AttributeFormWidget(QWidget):
             parts.append(name75)
         if name76:
             parts.append(name76)
-        self.txt_mdsd3_nguon_goc_ct.setText(", ".join(parts))
+        self.txt_mdsd3_nguon_goc_ct.setText(" ".join(parts))
 
     def _toggle_mdsd2_fields(self, enabled: bool):
         for col in range(62, 70):
@@ -1509,12 +1509,43 @@ class AttributeFormWidget(QWidget):
             val = str(data.get(col, "") or "")
 
             if isinstance(widget, QLineEdit):
-                widget.setText(val)
+                if not val:
+                    if col == 48:
+                        widget.setText("Toàn đạc điện tử")
+                    elif col == 49:
+                        widget.setText("Cao")
+                    elif col == 45:
+                        widget.setText("500")
+                    elif col == 58:
+                        widget.setText("Lâu dài")
+                    else:
+                        widget.setText("")
+                else:
+                    widget.setText(val)
             elif isinstance(widget, QPlainTextEdit):
                 widget.setPlainText(val)
             elif isinstance(widget, QComboBox):
                 if not val:
-                    widget.setCurrentIndex(0)
+                    if col in (25, 42):
+                        widget.setCurrentText("Viet Nam")
+                    elif col == 41:
+                        widget.setCurrentText("Không rõ")
+                    elif col == 24:
+                        widget.setCurrentText("Kinh")
+                    elif col == 46:
+                        widget.setCurrentText("1 - Bản đồ địa chính (VN2000)")
+                    elif col == 51:
+                        widget.setCurrentText("A - Đã cấp GCN, không có tài sản")
+                    elif col == 57:
+                        widget.setCurrentText("0 - Sử dụng riêng")
+                    elif col == 99:
+                        widget.setCurrentText("Giấy chứng nhận QSDĐ & QSHNƠ và TSKGLVĐ theo NĐ 43/NĐ-CP")
+                    else:
+                        widget.setCurrentIndex(0)
+                    continue
+
+                if col in (25, 42) and val.lower() in ("viet nam", "việt nam", "vietnam"):
+                    widget.setCurrentText("Viet Nam")
                     continue
 
                 if col in [20, 37, 91]:
