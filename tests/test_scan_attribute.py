@@ -392,6 +392,7 @@ def test_load_attr_dict_preserves_defaults(qapp):
     assert fw.cmb_chu_dantoc.currentText() == "Kinh"
     assert fw.txt_tyle.text() == "500"
     assert fw.txt_mdsd1_thoi_han.text() == "Lâu dài"
+    assert fw.txt_thu_muc_hsq.text() == ""
 
 
 def test_birth_date_and_year_auto_sync(qapp):

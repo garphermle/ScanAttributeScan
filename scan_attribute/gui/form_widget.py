@@ -1522,7 +1522,6 @@ class AttributeFormWidget(QWidget):
     def load_attr_dict(self, data: Dict[int, Any], serial: str):
         """Populates form directly from dictionary and serial name."""
         self.txt_serial.setText(serial)
-        self.txt_thu_muc_hsq.setText(serial)
 
         for col, widget in self.field_inputs.items():
             val = str(data.get(col, "") or "")

@@ -291,7 +291,7 @@ class MainWindow(QMainWindow):
                 self.file_tracker.record_file_saved(file_path, row_idx, row_idx - 4, serial_val)
                 self._update_banner_and_status(f"📄 File: [{pdf_filename}] ➔ Khớp Dòng {row_idx} trong Excel")
             else:
-                empty_data = {2: base_clean, 183: folder_name}
+                empty_data = {2: base_clean}
                 self.form_widget.load_attr_dict(empty_data, base_clean)
                 next_row = self.excel_engine.find_first_empty_row()
                 self._update_banner_and_status(f"📄 File mới: [{pdf_filename}] ➔ Chưa lưu (Sẽ ghi vào Dòng {next_row} - STT {next_row - 4})")
@@ -308,7 +308,7 @@ class MainWindow(QMainWindow):
             stt = row_idx - 4
             self._update_banner_and_status(f"📁 Hồ sơ: [{folder_name}] (Đã có tại Dòng {row_idx} - STT {stt})")
         else:
-            empty_data = {2: folder_name, 183: folder_name}
+            empty_data = {2: folder_name}
             self.form_widget.load_attr_dict(empty_data, folder_name)
             next_row = self.excel_engine.find_first_empty_row()
             next_stt = next_row - 4

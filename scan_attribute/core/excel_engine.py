@@ -141,8 +141,6 @@ class ExcelEngine:
         
         if 2 not in attr_dict or not attr_dict[2]:
             attr_dict[2] = serial
-        if 183 not in attr_dict or not attr_dict[183]:
-            attr_dict[183] = serial
 
         for c, val in attr_dict.items():
             if 1 <= c <= 186:
