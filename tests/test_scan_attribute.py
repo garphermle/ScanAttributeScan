@@ -357,3 +357,20 @@ def test_ma_hs_goc_auto_sync_from_barcode(qapp):
     attrs = fw.get_attr_dict()
     assert attrs.get(3) == "081887"
     assert attrs.get(4) == "0667320081887"
+
+
+def test_ma_don_auto_sync_from_serial(qapp):
+    from scan_attribute.gui.form_widget import AttributeFormWidget
+    md = MasterDataManager()
+    template_path = get_default_excel_path()
+    md.load_from_excel(template_path)
+    fw = AttributeFormWidget(md)
+
+    fw.chk_has_quan_ly.setChecked(True)
+    fw.txt_serial.setText("CS 123 456")
+    assert fw.txt_thua_ma_don.text() == "CS123456"
+
+    attrs = fw.get_attr_dict()
+    assert attrs.get(2) == "CS 123 456"
+    assert attrs.get(95) == "CS123456"
+

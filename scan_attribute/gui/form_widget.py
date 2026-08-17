@@ -257,6 +257,7 @@ class AttributeFormWidget(QWidget):
         self._setup_form_layout(form)
 
         self.txt_serial = QLineEdit()
+        self.txt_serial.textChanged.connect(self._auto_sync_ma_don)
         self._register_input(2, self.txt_serial)
 
         self.txt_ma_hs = QLineEdit()
@@ -345,6 +346,11 @@ class AttributeFormWidget(QWidget):
             self.txt_ma_hs.setText(clean[-6:])
         elif clean:
             self.txt_ma_hs.setText(clean)
+
+    def _auto_sync_ma_don(self, text: str):
+        """Auto-populates Col 95 (Mã đơn) from Col 2 (Số Serial) without spaces."""
+        clean = text.replace(" ", "").strip()
+        self.txt_thua_ma_don.setText(clean)
 
     def _auto_sync_ngay_cap(self, text: str):
         if not self.txt_ngay_cap.text() or self.txt_ngay_cap.text() == text[:-1]:
@@ -972,6 +978,8 @@ class AttributeFormWidget(QWidget):
         for col in (95, 96, 97, 98):
             if col in self.field_inputs:
                 self.field_inputs[col].setEnabled(enabled)
+        if enabled and not self.txt_thua_ma_don.text():
+            self._auto_sync_ma_don(self.txt_serial.text())
 
     def _toggle_thua_addr_sync(self, checked: bool):
         for col in (89, 90, 91, 92, 94):
