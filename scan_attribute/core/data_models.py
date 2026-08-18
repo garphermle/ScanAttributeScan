@@ -235,18 +235,10 @@ class MasterDataManager:
     def load_measurement_data(self, meas_excel_path: str = ""):
         """Loads QNH_ThongTinDoDac.xlsx for measuring units (Col 47) and completion dates (Col 50)."""
         import os
-        candidates = []
-        if meas_excel_path and os.path.exists(meas_excel_path):
-            candidates.append(meas_excel_path)
-        
-        # Standard resources path
-        base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        res_file = os.path.join(base_dir, "resources", "QNH_ThongTinDoDac.xlsx")
-        candidates.append(res_file)
-        candidates.append("/home/garpherm/VNPT/Source/scan_attribute/Copy of QNH_ThongTinDoDac.xlsx")
+        from scan_attribute.core.master_data import get_measurement_excel_path
 
-        target_file = next((c for c in candidates if os.path.exists(c)), None)
-        if not target_file:
+        target_file = meas_excel_path if (meas_excel_path and os.path.exists(meas_excel_path)) else get_measurement_excel_path()
+        if not target_file or not os.path.exists(target_file):
             return
 
         try:

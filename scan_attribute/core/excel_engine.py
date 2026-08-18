@@ -17,23 +17,36 @@ class ExcelEngine:
 
     def initialize(self, force_reload: bool = False):
         """Ensures output file exists by copying template if necessary, then loads workbook."""
+        if not self.output_path:
+            return
+
         if not os.path.exists(self.output_path):
-            os.makedirs(os.path.dirname(os.path.abspath(self.output_path)), exist_ok=True)
-            shutil.copy(self.template_path, self.output_path)
-            
-        if self.wb is None or force_reload:
-            self.wb = openpyxl.load_workbook(self.output_path)
-            if 'Data' in self.wb.sheetnames:
-                self.ws = self.wb['Data']
-            else:
-                self.ws = self.wb.active
+            if self.template_path and os.path.exists(self.template_path) and os.path.abspath(self.template_path) != os.path.abspath(self.output_path):
+                try:
+                    os.makedirs(os.path.dirname(os.path.abspath(self.output_path)), exist_ok=True)
+                    shutil.copy(self.template_path, self.output_path)
+                except Exception as e:
+                    print(f"Warning copying template: {e}")
+
+        if (self.wb is None or force_reload) and os.path.exists(self.output_path):
+            try:
+                self.wb = openpyxl.load_workbook(self.output_path)
+                if 'Data' in self.wb.sheetnames:
+                    self.ws = self.wb['Data']
+                else:
+                    self.ws = self.wb.active
+            except Exception as e:
+                print(f"Error loading workbook: {e}")
 
     def switch_target_file(self, target_path: str, copy_template_if_new: bool = True):
         """Switches target Excel file to a new or existing working file."""
         is_new = not os.path.exists(target_path)
-        if copy_template_if_new and is_new:
-            os.makedirs(os.path.dirname(os.path.abspath(target_path)), exist_ok=True)
-            shutil.copy(self.template_path, target_path)
+        if copy_template_if_new and is_new and self.template_path and os.path.exists(self.template_path):
+            try:
+                os.makedirs(os.path.dirname(os.path.abspath(target_path)), exist_ok=True)
+                shutil.copy(self.template_path, target_path)
+            except Exception as e:
+                print(f"Warning copying template: {e}")
 
         self.output_path = target_path
         self.initialize(force_reload=True)
@@ -42,7 +55,10 @@ class ExcelEngine:
             # Clear sample row 5 when creating a new file so data starts at Row 5 (STT 1)
             for c in range(1, 187):
                 self.ws.cell(5, c).value = None
-            self.wb.save(self.output_path)
+            try:
+                self.wb.save(self.output_path)
+            except Exception as e:
+                print(f"Warning saving new empty file: {e}")
             self.initialize(force_reload=True)
 
     def find_row_by_serial(self, serial: str) -> Optional[int]:

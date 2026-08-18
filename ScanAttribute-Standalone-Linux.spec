@@ -3,7 +3,9 @@ from PyInstaller.utils.hooks import collect_all
 
 datas = [
     ('scan_attribute/resources/Excel_FormMau.xlsx', 'scan_attribute/resources'),
-    ('scan_attribute/resources/QNH_ThongTinDoDac.xlsx', 'scan_attribute/resources')
+    ('scan_attribute/resources/Excel_FormMau.xlsx', 'resources'),
+    ('scan_attribute/resources/QNH_ThongTinDoDac.xlsx', 'scan_attribute/resources'),
+    ('scan_attribute/resources/QNH_ThongTinDoDac.xlsx', 'resources')
 ]
 binaries = []
 hiddenimports = []

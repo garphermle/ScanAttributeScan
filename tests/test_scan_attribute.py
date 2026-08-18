@@ -26,19 +26,30 @@ def test_excel_template_columns():
     assert engine.ws.max_column >= 8
     assert engine.ws.max_column >= 180  # Standard template has 186 columns
 
-def test_excel_read_row_sample():
+def test_excel_read_row_sample(tmp_path):
     excel_path = get_default_excel_path()
-    engine = ExcelEngine(excel_path)
+    work_file = os.path.join(tmp_path, "test_work.xlsx")
+    engine = ExcelEngine(excel_path, work_file)
     engine.initialize()
 
-    row_idx = engine.find_row_by_serial("CU 491118")
-    assert row_idx is not None
-    data = engine.read_row_data(row_idx)
+    # Template is clean and empty (starts at row 5)
+    assert engine.get_data_rows_count() == 0
+    assert engine.find_first_empty_row() == 5
+
+    # Save a record
+    row_idx = engine.save_row_data("CU 491118", {2: "CU 491118", 9: "Nguyễn Anh Tuấn", 43: "124", 44: "71"})
+    assert row_idx == 5
+    assert engine.get_data_rows_count() == 1
+
+    found_row = engine.find_row_by_serial("CU 491118")
+    assert found_row == 5
+    data = engine.read_row_data(found_row)
 
     assert data.get(2) == "CU 491118"
     assert data.get(9) == "Nguyễn Anh Tuấn"
     assert str(data.get(43)) == "124"
     assert str(data.get(44)) == "71"
+
 
 
 def test_queue_widget_2_view_modes(qapp, tmp_path):
