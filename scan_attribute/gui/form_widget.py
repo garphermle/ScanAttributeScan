@@ -187,6 +187,7 @@ class AttributeFormWidget(QWidget):
         # Tab 6: Tài sản & Lưu kho (Cols 134-186)
         self.tab_widget.addTab(self._create_tab_tai_san_va_khac(), "6. Tài Sản & Lưu Kho")
 
+        self.tab_widget.currentChanged.connect(self._on_tab_switched)
         layout.addWidget(self.tab_widget)
 
         # Bottom Action Row
@@ -218,6 +219,17 @@ class AttributeFormWidget(QWidget):
         layout.addLayout(btn_row)
 
         self._track_focus()
+
+    def _on_tab_switched(self, index: int):
+        """Ensures every tab scroll area resets to top (0) when opened."""
+        current_widget = self.tab_widget.currentWidget()
+        if isinstance(current_widget, QScrollArea):
+            current_widget.verticalScrollBar().setValue(0)
+            current_widget.horizontalScrollBar().setValue(0)
+        if index == 3 and hasattr(self, 'txt_thua_so'):
+            self.txt_thua_so.setFocus()
+            self.active_input_widget = self.txt_thua_so
+            self._highlight_active_field(self.txt_thua_so, 43)
 
     def _track_focus(self):
         """Connects focus events of all input widgets to remember active_input_widget."""
@@ -297,6 +309,12 @@ class AttributeFormWidget(QWidget):
             self._highlight_active_field(self.txt_barcode, 4)
         else:
             self.tab_widget.setCurrentIndex(0)
+
+        # Reset vertical scrollbar to 0 so the tab always opens at the very top
+        current_widget = self.tab_widget.currentWidget()
+        if isinstance(current_widget, QScrollArea):
+            current_widget.verticalScrollBar().setValue(0)
+            current_widget.horizontalScrollBar().setValue(0)
 
     def set_ocr_text_to_active_field(self, text: str):
         """Pastes OCR text into active focused input widget and updates clipboard."""
@@ -784,11 +802,12 @@ class AttributeFormWidget(QWidget):
 
         self.txt_dt_bando = QLineEdit()
         self.txt_dt_bando.setPlaceholderText("Ví dụ: 120.5")
-        self.txt_dt_bando.textChanged.connect(self._auto_sync_dt_phaply)
+        self.txt_dt_bando.textChanged.connect(self._auto_sync_dt_bando)
         self._register_input(52, self.txt_dt_bando)
 
         self.txt_dt_phaply = QLineEdit()
         self.txt_dt_phaply.setPlaceholderText("Ví dụ: 120.5")
+        self.txt_dt_phaply.textChanged.connect(self._auto_sync_dt_phaply)
         self._register_input(53, self.txt_dt_phaply)
 
         f_top.addRow("Số thửa (43):", self.txt_thua_so)
@@ -1033,11 +1052,23 @@ class AttributeFormWidget(QWidget):
 
         return self._create_scroll_area(container)
 
+    def _auto_sync_dt_bando(self, text: str):
+        clean = text.strip()
+        if not hasattr(self, '_prev_dt_bando'):
+            self._prev_dt_bando = ""
+        if not self.txt_dt_phaply.text() or self.txt_dt_phaply.text() == self._prev_dt_bando:
+            self.txt_dt_phaply.setText(clean)
+        if not self.txt_mdsd1_dt.text() or self.txt_mdsd1_dt.text() == self._prev_dt_bando:
+            self.txt_mdsd1_dt.setText(clean)
+        self._prev_dt_bando = clean
+
     def _auto_sync_dt_phaply(self, text: str):
-        if not self.txt_dt_phaply.text() or self.txt_dt_phaply.text() == text[:-1]:
-            self.txt_dt_phaply.setText(text)
-        if not self.txt_mdsd1_dt.text():
-            self.txt_mdsd1_dt.setText(text)
+        clean = text.strip()
+        if not hasattr(self, '_prev_dt_phaply'):
+            self._prev_dt_phaply = ""
+        if not self.txt_mdsd1_dt.text() or self.txt_mdsd1_dt.text() == self._prev_dt_phaply:
+            self.txt_mdsd1_dt.setText(clean)
+        self._prev_dt_phaply = clean
 
     def _on_mdsd1_changed(self, idx: int):
         code = self.cmb_mdsd1.currentData()

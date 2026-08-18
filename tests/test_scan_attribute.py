@@ -471,6 +471,41 @@ def test_combobox_wheel_event_ignored(qapp):
     assert cb.currentIndex() == 0
 
 
+def test_area_auto_sync_full_value(qapp):
+    from scan_attribute.gui.form_widget import AttributeFormWidget
+    md = MasterDataManager()
+    template_path = get_default_excel_path()
+    md.load_from_excel(template_path)
+    fw = AttributeFormWidget(md)
+
+    # Type 176 into txt_dt_bando character-by-character
+    for partial in ["1", "17", "176"]:
+        fw.txt_dt_bando.setText(partial)
+
+    assert fw.txt_dt_bando.text() == "176"
+    assert fw.txt_dt_phaply.text() == "176"
+    assert fw.txt_mdsd1_dt.text() == "176"
+
+    attrs = fw.get_attr_dict()
+    assert attrs.get(52) == "176"
+    assert attrs.get(53) == "176"
+    assert attrs.get(56) == "176"
+
+
+def test_tab_switch_scrolls_to_top(qapp):
+    from scan_attribute.gui.form_widget import AttributeFormWidget
+    md = MasterDataManager()
+    template_path = get_default_excel_path()
+    md.load_from_excel(template_path)
+    fw = AttributeFormWidget(md)
+
+    # Switch to Tab 4 (Thửa đất & MĐSD)
+    fw.tab_widget.setCurrentIndex(3)
+    current_w = fw.tab_widget.currentWidget()
+    assert current_w.verticalScrollBar().value() == 0
+    assert fw.active_input_widget == fw.txt_thua_so
+
+
 def test_main_window_instantiation(qapp):
     from scan_attribute.gui.main_window import MainWindow
     window = MainWindow()
