@@ -573,7 +573,7 @@ class AttributeFormWidget(QWidget):
 
         self.cmb_chu_dantoc = SearchableComboBox()
         self.cmb_chu_dantoc.addItems(self.master_data.ethnicities)
-        self.cmb_chu_dantoc.setCurrentText("Kinh")
+        self.cmb_chu_dantoc.setCurrentText("Không rõ")
         self._register_input(24, self.cmb_chu_dantoc)
 
         self.cmb_chu_quoctich = SearchableComboBox()
@@ -1653,10 +1653,8 @@ class AttributeFormWidget(QWidget):
                 if not val:
                     if col in (25, 42):
                         widget.setCurrentText("Viet Nam")
-                    elif col == 41:
+                    elif col in (24, 41):
                         widget.setCurrentText("Không rõ")
-                    elif col == 24:
-                        widget.setCurrentText("Kinh")
                     elif col == 46:
                         widget.setCurrentText("1 - Bản đồ địa chính (VN2000)")
                     elif col == 51:

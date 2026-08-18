@@ -400,7 +400,7 @@ def test_load_attr_dict_preserves_defaults(qapp):
     assert fw.cmb_chu_quoctich.currentText() == "Viet Nam"
     assert fw.cmb_vo_quoctich.currentText() == "Viet Nam"
     assert fw.cmb_vo_dantoc.currentText() == "Không rõ"
-    assert fw.cmb_chu_dantoc.currentText() == "Kinh"
+    assert fw.cmb_chu_dantoc.currentText() == "Không rõ"
     assert fw.txt_tyle.text() == "1"
     assert fw.cmb_loai_gcn.currentText() == "Giấy chứng nhận QSDĐ & QSHNƠ và TSKGLVĐ theo NĐ 88/NĐ-CP"
     assert fw.txt_chu_id_place.currentText() == "Cục Cảnh sát quản lý hành chính về trật tự xã hội"
