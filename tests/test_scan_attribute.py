@@ -429,4 +429,16 @@ def test_birth_date_and_year_auto_sync(qapp):
     assert attrs.get(29) == "1982"
 
 
+def test_main_window_instantiation(qapp):
+    from scan_attribute.gui.main_window import MainWindow
+    window = MainWindow()
+    assert window is not None
+    assert window.windowTitle().startswith("ScanAttribute")
+    assert window.queue_widget is not None
+    assert window.pdf_viewer is not None
+    assert window.form_widget is not None
+    window.close()
+
+
+
 

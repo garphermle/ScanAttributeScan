@@ -7,7 +7,8 @@ import os
 from typing import Optional
 from PySide6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QSplitter, QFileDialog, 
-    QMessageBox, QStatusBar, QToolBar, QStyle, QApplication, QLabel, QPushButton, QFrame
+    QMessageBox, QStatusBar, QToolBar, QStyle, QApplication, QLabel, QPushButton, QFrame,
+    QSizePolicy
 )
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QAction, QKeySequence, QShortcut, QFont
