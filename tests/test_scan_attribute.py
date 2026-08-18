@@ -478,16 +478,16 @@ def test_area_auto_sync_full_value(qapp):
     md.load_from_excel(template_path)
     fw = AttributeFormWidget(md)
 
-    # Type 176 into txt_dt_bando character-by-character
-    for partial in ["1", "17", "176"]:
-        fw.txt_dt_bando.setText(partial)
+    # Col 52 is skipped (empty)
+    # Type 176 into txt_dt_phaply (Col 53)
+    fw.txt_dt_phaply.setText("176")
 
-    assert fw.txt_dt_bando.text() == "176"
+    assert fw.txt_dt_bando.text() == ""
     assert fw.txt_dt_phaply.text() == "176"
     assert fw.txt_mdsd1_dt.text() == "176"
 
     attrs = fw.get_attr_dict()
-    assert attrs.get(52) == "176"
+    assert attrs.get(52) == ""
     assert attrs.get(53) == "176"
     assert attrs.get(56) == "176"
 

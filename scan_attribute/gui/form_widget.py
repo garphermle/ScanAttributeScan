@@ -801,8 +801,7 @@ class AttributeFormWidget(QWidget):
         self._register_input(51, self.cmb_phan_loai_thua)
 
         self.txt_dt_bando = QLineEdit()
-        self.txt_dt_bando.setPlaceholderText("Ví dụ: 120.5")
-        self.txt_dt_bando.textChanged.connect(self._auto_sync_dt_bando)
+        self.txt_dt_bando.setPlaceholderText("Bỏ qua / Trống")
         self._register_input(52, self.txt_dt_bando)
 
         self.txt_dt_phaply = QLineEdit()
@@ -1052,23 +1051,10 @@ class AttributeFormWidget(QWidget):
 
         return self._create_scroll_area(container)
 
-    def _auto_sync_dt_bando(self, text: str):
-        clean = text.strip()
-        if not hasattr(self, '_prev_dt_bando'):
-            self._prev_dt_bando = ""
-        if not self.txt_dt_phaply.text() or self.txt_dt_phaply.text() == self._prev_dt_bando:
-            self.txt_dt_phaply.setText(clean)
-        if not self.txt_mdsd1_dt.text() or self.txt_mdsd1_dt.text() == self._prev_dt_bando:
-            self.txt_mdsd1_dt.setText(clean)
-        self._prev_dt_bando = clean
-
     def _auto_sync_dt_phaply(self, text: str):
+        """Directly syncs Col 53 (Diện tích pháp lý) to Col 56 (Diện tích MĐSD 1)."""
         clean = text.strip()
-        if not hasattr(self, '_prev_dt_phaply'):
-            self._prev_dt_phaply = ""
-        if not self.txt_mdsd1_dt.text() or self.txt_mdsd1_dt.text() == self._prev_dt_phaply:
-            self.txt_mdsd1_dt.setText(clean)
-        self._prev_dt_phaply = clean
+        self.txt_mdsd1_dt.setText(clean)
 
     def _on_mdsd1_changed(self, idx: int):
         code = self.cmb_mdsd1.currentData()
