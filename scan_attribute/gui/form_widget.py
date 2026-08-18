@@ -15,6 +15,16 @@ from PySide6.QtGui import QGuiApplication
 from scan_attribute.core.data_models import MasterDataManager, CommuneInfo, MeasurementInfo
 
 
+DEFAULT_NOI_CAP_LIST = [
+    "Cục Cảnh sát quản lý hành chính về trật tự xã hội",
+    "Cục Cảnh sát đăng ký quản lý cư trú và dữ liệu quốc gia về dân cư",
+    "Công an Tỉnh Quảng Ninh",
+    "Cục CSQLHC về TTXH",
+    "Cục CS ĐKQL cư trú và DLQG về dân cư",
+    "Công an tỉnh Quảng Ninh"
+]
+
+
 class VerticalOnlyScrollArea(QScrollArea):
     """
     A specialized QScrollArea that strictly forbids horizontal scrolling / shifting
@@ -91,6 +101,10 @@ class SearchableComboBox(QComboBox):
 
         if self.lineEdit():
             self.lineEdit().setPlaceholderText("🔍 Tìm / Chọn...")
+
+    def wheelEvent(self, event):
+        # Disable changing value on mouse wheel scroll
+        event.ignore()
 
 
 class AttributeFormWidget(QWidget):
@@ -214,6 +228,10 @@ class AttributeFormWidget(QWidget):
                     widget.lineEdit().installEventFilter(self)
 
     def eventFilter(self, watched, event):
+        if event.type() == event.Type.Wheel:
+            if isinstance(watched, QComboBox) or (watched and isinstance(watched.parent(), QComboBox)):
+                event.ignore()
+                return True
         if event.type() in (event.Type.FocusIn, event.Type.MouseButtonPress):
             for col, w in self.field_inputs.items():
                 if w == watched or (isinstance(w, QComboBox) and w.lineEdit() == watched):
@@ -343,11 +361,13 @@ class AttributeFormWidget(QWidget):
 
         # Ký cấp GCN
         self.cmb_loai_gcn = SearchableComboBox()
-        for g in self.master_data.gcn_types:
+        default_gcn = "Giấy chứng nhận QSDĐ & QSHNƠ và TSKGLVĐ theo NĐ 88/NĐ-CP"
+        all_gcns = list(self.master_data.gcn_types)
+        if default_gcn not in all_gcns:
+            all_gcns.insert(0, default_gcn)
+        for g in all_gcns:
             self.cmb_loai_gcn.addItem(g, g)
-        if "Giấy chứng nhận QSDĐ & QSHNƠ và TSKGLVĐ theo NĐ 43/NĐ-CP" not in self.master_data.gcn_types:
-            self.cmb_loai_gcn.addItem("Giấy chứng nhận QSDĐ & QSHNƠ và TSKGLVĐ theo NĐ 43/NĐ-CP", "Giấy chứng nhận QSDĐ & QSHNƠ và TSKGLVĐ theo NĐ 43/NĐ-CP")
-        self.cmb_loai_gcn.setCurrentText("Giấy chứng nhận QSDĐ & QSHNƠ và TSKGLVĐ theo NĐ 43/NĐ-CP")
+        self.cmb_loai_gcn.setCurrentText(default_gcn)
         self._register_input(99, self.cmb_loai_gcn)
 
         self.txt_so_vao_so = QLineEdit()
@@ -356,6 +376,7 @@ class AttributeFormWidget(QWidget):
 
         self.txt_ngay_vao_so = QLineEdit()
         self.txt_ngay_vao_so.setPlaceholderText("Ví dụ: 31/07/2024")
+        self.txt_ngay_vao_so.textChanged.connect(self._auto_sync_ngay_vao_so)
         self._register_input(101, self.txt_ngay_vao_so)
 
         self.txt_ngay_ky = QLineEdit()
@@ -424,9 +445,17 @@ class AttributeFormWidget(QWidget):
         clean = text.replace(" ", "").strip()
         self.txt_thua_ma_don.setText(clean)
 
+    def _auto_sync_ngay_vao_so(self, text: str):
+        """When Ngày vào sổ (Col 101) is filled, syncs to Ngày ký (Col 102) and Ngày cấp (Col 106)."""
+        clean = text.strip()
+        if clean:
+            self.txt_ngay_ky.setText(clean)
+            self.txt_ngay_cap.setText(clean)
+
     def _auto_sync_ngay_cap(self, text: str):
-        if not self.txt_ngay_cap.text() or self.txt_ngay_cap.text() == text[:-1]:
-            self.txt_ngay_cap.setText(text)
+        clean = text.strip()
+        if clean and not self.txt_ngay_cap.text():
+            self.txt_ngay_cap.setText(clean)
 
     def _auto_sync_chu_nam_sinh(self, text: str):
         clean = text.strip()
@@ -508,7 +537,10 @@ class AttributeFormWidget(QWidget):
         self.txt_chu_id_date = QLineEdit()
         self._register_input(15, self.txt_chu_id_date)
 
-        self.txt_chu_id_place = QLineEdit("Cục CSQLHC về TTXH")
+        self.txt_chu_id_place = SearchableComboBox()
+        for opt in DEFAULT_NOI_CAP_LIST:
+            self.txt_chu_id_place.addItem(opt, opt)
+        self.txt_chu_id_place.setCurrentText("Cục Cảnh sát quản lý hành chính về trật tự xã hội")
         self._register_input(16, self.txt_chu_id_place)
 
         self.txt_chu_address = QLineEdit()
@@ -617,7 +649,10 @@ class AttributeFormWidget(QWidget):
         self.txt_vo_id_date = QLineEdit()
         self._register_input(32, self.txt_vo_id_date)
 
-        self.txt_vo_id_place = QLineEdit("Cục CSQLHC về TTXH")
+        self.txt_vo_id_place = SearchableComboBox()
+        for opt in DEFAULT_NOI_CAP_LIST:
+            self.txt_vo_id_place.addItem(opt, opt)
+        self.txt_vo_id_place.setCurrentText("Cục Cảnh sát quản lý hành chính về trật tự xã hội")
         self._register_input(33, self.txt_vo_id_place)
 
         self.txt_vo_address = QLineEdit()
@@ -709,7 +744,7 @@ class AttributeFormWidget(QWidget):
         self.txt_to_so.setPlaceholderText("Ví dụ: 71")
         self._register_input(44, self.txt_to_so)
 
-        self.txt_tyle = QLineEdit("500")
+        self.txt_tyle = QLineEdit("1")
         self._register_input(45, self.txt_tyle)
 
         # Loại bản đồ: lấy giá trị 1, 2, 3, 4, 5
@@ -1605,7 +1640,7 @@ class AttributeFormWidget(QWidget):
                     elif col == 49:
                         widget.setText("Cao")
                     elif col == 45:
-                        widget.setText("500")
+                        widget.setText("1")
                     elif col == 58:
                         widget.setText("Lâu dài")
                     else:
@@ -1629,7 +1664,9 @@ class AttributeFormWidget(QWidget):
                     elif col == 57:
                         widget.setCurrentText("0 - Sử dụng riêng")
                     elif col == 99:
-                        widget.setCurrentText("Giấy chứng nhận QSDĐ & QSHNƠ và TSKGLVĐ theo NĐ 43/NĐ-CP")
+                        widget.setCurrentText("Giấy chứng nhận QSDĐ & QSHNƠ và TSKGLVĐ theo NĐ 88/NĐ-CP")
+                    elif col in (16, 33):
+                        widget.setCurrentText("Cục Cảnh sát quản lý hành chính về trật tự xã hội")
                     else:
                         widget.setCurrentIndex(0)
                     continue

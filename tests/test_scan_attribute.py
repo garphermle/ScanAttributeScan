@@ -401,7 +401,10 @@ def test_load_attr_dict_preserves_defaults(qapp):
     assert fw.cmb_vo_quoctich.currentText() == "Viet Nam"
     assert fw.cmb_vo_dantoc.currentText() == "Không rõ"
     assert fw.cmb_chu_dantoc.currentText() == "Kinh"
-    assert fw.txt_tyle.text() == "500"
+    assert fw.txt_tyle.text() == "1"
+    assert fw.cmb_loai_gcn.currentText() == "Giấy chứng nhận QSDĐ & QSHNƠ và TSKGLVĐ theo NĐ 88/NĐ-CP"
+    assert fw.txt_chu_id_place.currentText() == "Cục Cảnh sát quản lý hành chính về trật tự xã hội"
+    assert fw.txt_vo_id_place.currentText() == "Cục Cảnh sát quản lý hành chính về trật tự xã hội"
     assert fw.txt_mdsd1_thoi_han.text() == "Lâu dài"
     assert fw.txt_thu_muc_hsq.text() == ""
 
@@ -427,6 +430,45 @@ def test_birth_date_and_year_auto_sync(qapp):
     assert attrs.get(12) == "1975"
     assert attrs.get(28) == "20/10/1982"
     assert attrs.get(29) == "1982"
+
+
+def test_gcn_date_auto_sync(qapp):
+    from scan_attribute.gui.form_widget import AttributeFormWidget
+    md = MasterDataManager()
+    template_path = get_default_excel_path()
+    md.load_from_excel(template_path)
+    fw = AttributeFormWidget(md)
+
+    # Ngày vào sổ (101) -> Ngày ký (102) & Ngày cấp (106)
+    fw.txt_ngay_vao_so.setText("31/07/2024")
+    assert fw.txt_ngay_ky.text() == "31/07/2024"
+    assert fw.txt_ngay_cap.text() == "31/07/2024"
+
+    attrs = fw.get_attr_dict()
+    assert attrs.get(101) == "31/07/2024"
+    assert attrs.get(102) == "31/07/2024"
+    assert attrs.get(106) == "31/07/2024"
+
+
+def test_combobox_wheel_event_ignored(qapp):
+    from scan_attribute.gui.form_widget import SearchableComboBox
+    from PySide6.QtGui import QWheelEvent
+    from PySide6.QtCore import Qt, QPointF, QPoint
+
+    cb = SearchableComboBox()
+    cb.addItem("Item 1", "1")
+    cb.addItem("Item 2", "2")
+    cb.setCurrentIndex(0)
+
+    # Create and send wheel event
+    wheel_ev = QWheelEvent(
+        QPointF(10, 10), QPointF(10, 10), QPoint(0, 0), QPoint(0, 120),
+        Qt.MouseButton.NoButton, Qt.KeyboardModifier.NoModifier,
+        Qt.ScrollPhase.NoScrollPhase, False
+    )
+    cb.wheelEvent(wheel_ev)
+    # Selection should remain unchanged (Item 1)
+    assert cb.currentIndex() == 0
 
 
 def test_main_window_instantiation(qapp):
