@@ -1651,7 +1651,7 @@ class AttributeFormWidget(QWidget):
             val = str(data.get(col, "") or "")
 
             if isinstance(widget, QLineEdit):
-                if not val:
+                if not val or (col == 45 and val.strip() in ("500", "500.0", "1/500", "1:500")):
                     if col == 48:
                         widget.setText("Toàn đạc điện tử")
                     elif col == 49:

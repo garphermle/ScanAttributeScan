@@ -408,6 +408,10 @@ def test_load_attr_dict_preserves_defaults(qapp):
     assert fw.txt_mdsd1_thoi_han.text() == "Lâu dài"
     assert fw.txt_thu_muc_hsq.text() == ""
 
+    # Load dict with legacy 500
+    fw.load_attr_dict({45: "500"}, "TEST_SERIAL_2")
+    assert fw.txt_tyle.text() == "1"
+
 
 def test_birth_date_and_year_auto_sync(qapp):
     from scan_attribute.gui.form_widget import AttributeFormWidget
