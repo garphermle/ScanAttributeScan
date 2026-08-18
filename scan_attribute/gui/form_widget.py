@@ -8,11 +8,56 @@ from typing import Dict, Any, Optional
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QTabWidget, QFormLayout, 
     QLineEdit, QComboBox, QCheckBox, QLabel, QGroupBox, QPlainTextEdit,
-    QPushButton, QScrollArea, QSplitter, QApplication, QCompleter, QSizePolicy
+    QPushButton, QScrollArea, QSplitter, QApplication, QCompleter, QSizePolicy, QFrame
 )
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QGuiApplication
 from scan_attribute.core.data_models import MasterDataManager, CommuneInfo, MeasurementInfo
+
+
+class VerticalOnlyScrollArea(QScrollArea):
+    """
+    A specialized QScrollArea that strictly forbids horizontal scrolling / shifting
+    when focus events or widget navigation occur, ensuring 100% stable form layout.
+    """
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWidgetResizable(True)
+        self.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        self.setFrameShape(QFrame.Shape.NoFrame)
+        self.horizontalScrollBar().setEnabled(False)
+        self.horizontalScrollBar().valueChanged.connect(self._lock_horizontal_scroll)
+
+    def _lock_horizontal_scroll(self, val):
+        if val != 0:
+            self.horizontalScrollBar().setValue(0)
+
+    def scrollContentsBy(self, dx, dy):
+        # Force horizontal delta dx to 0 so contents never shift sideways
+        super().scrollContentsBy(0, dy)
+
+    def ensureWidgetVisible(self, child_widget, xmargin=50, ymargin=50):
+        # Only adjust vertical scrollbar value, keep horizontal scroll value strictly at 0
+        if not child_widget or not self.widget():
+            return
+        try:
+            val = self.verticalScrollBar().value()
+            target_rect = child_widget.rect()
+            pos = child_widget.mapTo(self.widget(), target_rect.topLeft())
+            viewport_height = self.viewport().height()
+
+            top = pos.y()
+            bottom = pos.y() + child_widget.height()
+
+            if top < val + ymargin:
+                self.verticalScrollBar().setValue(max(0, top - ymargin))
+            elif bottom > val + viewport_height - ymargin:
+                self.verticalScrollBar().setValue(bottom - viewport_height + ymargin)
+        except Exception:
+            pass
+
+        self.horizontalScrollBar().setValue(0)
 
 
 class SearchableComboBox(QComboBox):
@@ -57,6 +102,7 @@ class AttributeFormWidget(QWidget):
         self.last_commune_code: str = ""
         self.field_inputs: Dict[int, QWidget] = {}
         self.active_input_widget: Optional[QWidget] = None
+        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
 
         self._init_ui()
 
@@ -270,9 +316,7 @@ class AttributeFormWidget(QWidget):
         form.setRowWrapPolicy(QFormLayout.RowWrapPolicy.DontWrapRows)
 
     def _create_scroll_area(self, widget: QWidget) -> QScrollArea:
-        scroll = QScrollArea()
-        scroll.setWidgetResizable(True)
-        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        scroll = VerticalOnlyScrollArea()
         scroll.setWidget(widget)
         return scroll
 
