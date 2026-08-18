@@ -65,6 +65,46 @@ class AttributeFormWidget(QWidget):
         layout.setContentsMargins(2, 2, 2, 2)
         layout.setSpacing(2)
 
+        self.setStyleSheet("""
+            QLineEdit {
+                border: 1px solid #c0c4cc;
+                border-radius: 2px;
+                min-height: 24px;
+                max-height: 26px;
+                padding: 1px 4px;
+                font-size: 12px;
+                background-color: #ffffff;
+            }
+            QLineEdit:focus {
+                border: 2px solid #1976d2;
+                background-color: #e3f2fd;
+                font-weight: bold;
+            }
+            QPlainTextEdit {
+                border: 1px solid #c0c4cc;
+                border-radius: 2px;
+                font-size: 12px;
+                background-color: #ffffff;
+            }
+            QPlainTextEdit:focus {
+                border: 2px solid #1976d2;
+                background-color: #e3f2fd;
+            }
+            QScrollBar:vertical {
+                width: 10px;
+                background: #f1f1f1;
+                margin: 0px;
+            }
+            QScrollBar::handle:vertical {
+                background: #c1c1c1;
+                min-height: 20px;
+                border-radius: 4px;
+            }
+            QScrollBar::handle:vertical:hover {
+                background: #a8a8a8;
+            }
+        """)
+
         self.tab_widget = QTabWidget()
         self.tab_widget.setStyleSheet("""
             QTabBar::tab {
@@ -152,18 +192,6 @@ class AttributeFormWidget(QWidget):
         }
         name = field_names.get(col_idx, f"Cột {col_idx}")
         self.lbl_status.setText(f"📍 Đang nhắm ô: [{name}] (OCR/Scan sẽ dán vào đây)")
-
-        for w in self.field_inputs.values():
-            if isinstance(w, QLineEdit):
-                if w == target_widget:
-                    w.setStyleSheet("border: 2px solid #1565c0; background-color: #e3f2fd; font-weight: bold; min-height: 24px;")
-                else:
-                    w.setStyleSheet("min-height: 24px;")
-            elif isinstance(w, QPlainTextEdit):
-                if w == target_widget:
-                    w.setStyleSheet("border: 2px solid #1565c0; background-color: #e3f2fd; font-weight: bold;")
-                else:
-                    w.setStyleSheet("")
 
     def navigate_to_pdf_type(self, pdf_filename: str):
         """Automatically switches to the corresponding form tab and focuses the primary field based on PDF type."""

@@ -106,26 +106,42 @@ class MainWindow(QMainWindow):
 
         # MAIN 3-COLUMN SPLITTER
         main_splitter = QSplitter(Qt.Orientation.Horizontal)
+        main_splitter.setChildrenCollapsible(False)
+        main_splitter.setHandleWidth(6)
+        main_splitter.setStyleSheet("""
+            QSplitter::handle {
+                background-color: #e0e0e0;
+            }
+            QSplitter::handle:hover {
+                background-color: #1976d2;
+            }
+        """)
 
         # 1. Left Queue (QTreeWidget)
         self.queue_widget = QueueWidget()
+        self.queue_widget.setMinimumWidth(220)
         self.queue_widget.folder_selected.connect(self.on_folder_selected)
         self.queue_widget.file_selected.connect(self.on_file_selected)
         main_splitter.addWidget(self.queue_widget)
 
         # 2. Center PDF Viewer
         self.pdf_viewer = PDFViewerWidget()
+        self.pdf_viewer.setMinimumWidth(380)
         self.pdf_viewer.ocr_text_captured.connect(self.on_ocr_text_captured)
         self.pdf_viewer.pdf_tab_changed.connect(self.on_pdf_tab_changed)
         main_splitter.addWidget(self.pdf_viewer)
 
         # 3. Right Form
         self.form_widget = AttributeFormWidget(self.master_data)
+        self.form_widget.setMinimumWidth(360)
         self.form_widget.save_requested.connect(self.save_and_next)
         main_splitter.addWidget(self.form_widget)
 
-        # Proportions: 20% Queue, 40% PDF Viewer, 40% Form
-        main_splitter.setSizes([300, 660, 640])
+        # Stretch: Left fixed/low stretch, Center 1, Right 1
+        main_splitter.setStretchFactor(0, 0)
+        main_splitter.setStretchFactor(1, 1)
+        main_splitter.setStretchFactor(2, 1)
+        main_splitter.setSizes([260, 700, 640])
 
         root_layout.addWidget(main_splitter, stretch=1)
         self.setCentralWidget(central_container)
