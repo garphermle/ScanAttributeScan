@@ -999,6 +999,8 @@ class AttributeFormWidget(QWidget):
         self.cmb_thua_xa = SearchableComboBox()
         self._populate_communes(self.cmb_thua_xa)
         self.cmb_thua_xa.currentIndexChanged.connect(self._on_thua_commune_changed)
+        if self.cmb_thua_xa.lineEdit():
+            self.cmb_thua_xa.lineEdit().editingFinished.connect(self._on_thua_commune_changed)
         self._register_input(91, self.cmb_thua_xa)
 
         self.txt_thua_xa_huyen_tinh = QLineEdit()
@@ -1139,20 +1141,31 @@ class AttributeFormWidget(QWidget):
             self.txt_thua_xa_huyen_tinh.setText(self.txt_chu_xa_huyen_tinh.text())
             self.txt_thua_full_addr.setText(self.txt_chu_full_addr.text())
 
-    def _on_thua_commune_changed(self, idx: int):
+    def _on_thua_commune_changed(self, *args):
         data = self.cmb_thua_xa.currentData()
         if isinstance(data, CommuneInfo):
             self.txt_thua_xa_huyen_tinh.setText(data.full_location)
             self._update_thua_full_address()
-            # Auto fill measuring unit & completion date from QNH_ThongTinDoDac.xlsx
+            # Auto fill measuring unit & completion date strictly from Col 91
             self._auto_fill_measurement(data.name_3cap, data.district)
+        else:
+            text = self.cmb_thua_xa.currentText().strip()
+            if text:
+                for i in range(self.cmb_thua_xa.count()):
+                    c_info = self.cmb_thua_xa.itemData(i)
+                    if isinstance(c_info, CommuneInfo) and (c_info.code_3cap == text or c_info.name_3cap.lower() == text.lower()):
+                        self.txt_thua_xa_huyen_tinh.setText(c_info.full_location)
+                        self._update_thua_full_address()
+                        self._auto_fill_measurement(c_info.name_3cap, c_info.district)
+                        break
 
     def _auto_fill_measurement(self, commune_name: str, district: str):
+        """Always updates Col 47 (Đơn vị đo) & Col 50 (Ngày hoàn thành) to the latest measurement data from Col 91."""
         meas = self.master_data.find_measurement(commune_name, district)
         if meas:
-            if not self.cmb_don_vi_do.currentText():
+            if meas.measuring_unit:
                 self.cmb_don_vi_do.setCurrentText(meas.measuring_unit)
-            if not self.txt_ngay_hoan_thanh.text():
+            if meas.completion_date:
                 self.txt_ngay_hoan_thanh.setText(meas.completion_date)
 
     def _update_thua_full_address(self):
@@ -1806,3 +1819,9 @@ class AttributeFormWidget(QWidget):
         else:
             self.chk_has_thua_cu.setChecked(False)
             self._toggle_thua_cu_fields(False)
+
+        # Explicit overrides for 47 and 50 if present in data
+        if data.get(47):
+            self.cmb_don_vi_do.setCurrentText(str(data.get(47)))
+        if data.get(50):
+            self.txt_ngay_hoan_thanh.setText(str(data.get(50)))

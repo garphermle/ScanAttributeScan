@@ -302,16 +302,37 @@ def test_nguon_goc_chi_tiet_auto_sync(qapp):
 
 def test_measurement_data_lookup_col_47_50(qapp):
     from scan_attribute.gui.form_widget import AttributeFormWidget
+    from scan_attribute.core.data_models import CommuneInfo
     md = MasterDataManager()
     template_path = get_default_excel_path()
     md.load_from_excel(template_path)
     fw = AttributeFormWidget(md)
 
-    # Find measurement directly
+    # 1. Find measurement directly
     meas = md.find_measurement("Phường Hà Khánh", "Thành phố Hạ Long")
     assert meas is not None
     assert "Xí nghiệp tài nguyên và môi trường 3" in meas.measuring_unit
     assert "21/12/2017" in meas.completion_date
+
+    # 2. Select Hà Khánh in Col 91 (Thửa đất)
+    for i in range(fw.cmb_thua_xa.count()):
+        c = fw.cmb_thua_xa.itemData(i)
+        if isinstance(c, CommuneInfo) and "hà khánh" in c.name_3cap.lower():
+            fw.cmb_thua_xa.setCurrentIndex(i)
+            break
+
+    assert fw.cmb_don_vi_do.currentText() == "Xí nghiệp tài nguyên và môi trường 3"
+    assert fw.txt_ngay_hoan_thanh.text() == "21/12/2017"
+
+    # 3. Change Col 91 to Hà Phong -> Col 47 and Col 50 MUST update to newest measurement
+    for i in range(fw.cmb_thua_xa.count()):
+        c = fw.cmb_thua_xa.itemData(i)
+        if isinstance(c, CommuneInfo) and "hà phong" in c.name_3cap.lower():
+            fw.cmb_thua_xa.setCurrentIndex(i)
+            break
+
+    assert fw.cmb_don_vi_do.currentText() == "Xí nghiệp tài nguyên và môi trường 4"
+    assert fw.txt_ngay_hoan_thanh.text() == "12/12/2017"
 
 
 def test_optional_fields_empty_when_unchecked(qapp):

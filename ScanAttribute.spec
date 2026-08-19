@@ -1,26 +1,12 @@
 # -*- mode: python ; coding: utf-8 -*-
-from PyInstaller.utils.hooks import collect_all
-
-datas = [
-    ('scan_attribute/resources/Excel_FormMau.xlsx', 'scan_attribute/resources'),
-    ('scan_attribute/resources/Excel_FormMau.xlsx', 'resources'),
-    ('scan_attribute/resources/QNH_ThongTinDoDac.xlsx', 'scan_attribute/resources'),
-    ('scan_attribute/resources/QNH_ThongTinDoDac.xlsx', 'resources')
-]
-binaries = []
-hiddenimports = []
-tmp_ret = collect_all('rapidocr_onnxruntime')
-datas += tmp_ret[0]; binaries += tmp_ret[1]; hiddenimports += tmp_ret[2]
-tmp_ret = collect_all('pypdfium2')
-datas += tmp_ret[0]; binaries += tmp_ret[1]; hiddenimports += tmp_ret[2]
 
 
 a = Analysis(
     ['scan_attribute/main.py'],
     pathex=[],
-    binaries=binaries,
-    datas=datas,
-    hiddenimports=hiddenimports,
+    binaries=[],
+    datas=[('scan_attribute/resources', 'resources'), ('scan_attribute/resources', 'scan_attribute/resources')],
+    hiddenimports=['openpyxl', 'fitz', 'cv2', 'PIL', 'pyzbar'],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
