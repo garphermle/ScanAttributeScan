@@ -45,8 +45,15 @@ class CommuneInfo:
     name_2cap: str = ""
 
     @property
+    def formatted_name(self) -> str:
+        name = self.name_3cap.strip()
+        if name.startswith("Xã "):
+            return "xã " + name[3:]
+        return name
+
+    @property
     def full_location(self) -> str:
-        parts = [self.name_3cap, self.district, self.province]
+        parts = [self.formatted_name, self.district, self.province]
         return ", ".join(p for p in parts if p)
 
 

@@ -285,7 +285,20 @@ class AttributeFormWidget(QWidget):
         r_xa.addWidget(self.cmb_thua_xa, stretch=1)
         focus_layout.addLayout(r_xa)
 
-        # Row 5: Ghi chú trang 2 (110)
+        # Row 5: Diện tích (112)
+        r_dt = QHBoxLayout()
+        lbl_dt = QLabel("📐 Diện tích (112):")
+        lbl_dt.setProperty("class", "focus-label")
+        lbl_dt.setFixedWidth(160)
+        self.txt_hc_dt = QLineEdit()
+        self.txt_hc_dt.setProperty("class", "focus-input")
+        self.txt_hc_dt.setPlaceholderText("Ví dụ: 120.5")
+        self._register_input(112, self.txt_hc_dt)
+        r_dt.addWidget(lbl_dt)
+        r_dt.addWidget(self.txt_hc_dt, stretch=1)
+        focus_layout.addLayout(r_dt)
+
+        # Row 6: Ghi chú trang 2 (110)
         r_gc = QVBoxLayout()
         lbl_gc2 = QLabel("📝 Ghi chú trang 2 (110) [Kéo chuột OCR để tự dán vào]:")
         lbl_gc2.setProperty("class", "focus-label")
@@ -359,10 +372,11 @@ class AttributeFormWidget(QWidget):
         btn_row.addWidget(self.btn_save)
         root_layout.addLayout(btn_row)
 
-        # Tab Order: 43 -> 44 -> 93 -> 110 -> Save
+        # Tab Order: 43 -> 44 -> 93 -> 112 -> 110 -> Save
         QWidget.setTabOrder(self.txt_thua_so, self.txt_thua_to)
         QWidget.setTabOrder(self.txt_thua_to, self.cmb_thua_xa)
-        QWidget.setTabOrder(self.cmb_thua_xa, self.txt_ghi_chu_t2)
+        QWidget.setTabOrder(self.cmb_thua_xa, self.txt_hc_dt)
+        QWidget.setTabOrder(self.txt_hc_dt, self.txt_ghi_chu_t2)
         QWidget.setTabOrder(self.txt_ghi_chu_t2, self.btn_save)
 
         self.active_input_widget = self.txt_thua_so
@@ -1098,8 +1112,9 @@ class AttributeFormWidget(QWidget):
             self.cmb_hc_loai.addItem(r_code, r_code)
         self._register_input(111, self.cmb_hc_loai)
 
-        self.txt_hc_dt = QLineEdit("")
-        self._register_input(112, self.txt_hc_dt)
+        self.txt_hc_dt_tab = QLineEdit("")
+        self.txt_hc_dt.textChanged.connect(self.txt_hc_dt_tab.setText)
+        self.txt_hc_dt_tab.textChanged.connect(self.txt_hc_dt.setText)
         self.txt_hc_noidung = QLineEdit("")
         self._register_input(113, self.txt_hc_noidung)
         self.txt_hc_sovb = QLineEdit("")
@@ -1112,7 +1127,7 @@ class AttributeFormWidget(QWidget):
         self._register_input(117, self.chk_hc_1phan)
 
         fhc.addRow("Loại hạn chế (111):", self.cmb_hc_loai)
-        fhc.addRow("Diện tích (112):", self.txt_hc_dt)
+        fhc.addRow("Diện tích (112):", self.txt_hc_dt_tab)
         fhc.addRow("Nội dung (113):", self.txt_hc_noidung)
         fhc.addRow("Số văn bản (114):", self.txt_hc_sovb)
         fhc.addRow("Ngày ban hành (115):", self.txt_hc_ngaybh)
@@ -1468,12 +1483,12 @@ class AttributeFormWidget(QWidget):
     # AUTO-SYNC AND HELPER LOGIC
     # -------------------------------------------------------------
     def _populate_communes(self, combo: QComboBox):
-        """Populates commune selector for Col 93 (saving full location text)."""
+        """Populates commune selector for Col 93 (saving full location text with lowercase 'xã' and no code suffix)."""
         combo.clear()
         combo.addItem("[Không chọn]", "")
         for c in self.master_data.communes:
-            disp_text = f"{c.name_3cap}, {c.district}, Tỉnh Quảng Ninh ({c.code_3cap})"
-            combo.addItem(disp_text, c.full_location)
+            loc = c.full_location
+            combo.addItem(loc, loc)
 
     def _populate_communes_for_tab(self, combo: QComboBox):
         """Populates commune selector for tabbed fields (Cols 20, 37)."""
@@ -1617,22 +1632,29 @@ class AttributeFormWidget(QWidget):
                 if not text or text == "[Không chọn]" or text == "--" or text == "[Trống]":
                     data[col] = ""
                 else:
-                    match_idx = widget.findText(text)
-                    if match_idx >= 0:
-                        val = widget.itemData(match_idx)
-                        if isinstance(val, CommuneInfo):
-                            data[col] = val.code_3cap
-                        elif val is not None and str(val) != "":
-                            data[col] = str(val)
-                        elif " - " in text:
-                            data[col] = text.split(" - ")[0].strip()
-                        else:
-                            data[col] = text
+                    if col == 93:
+                        import re
+                        cleaned = re.sub(r'\s*\(\d+\)\s*$', '', text).strip()
+                        if cleaned.startswith("Xã "):
+                            cleaned = "xã " + cleaned[3:]
+                        data[col] = cleaned
                     else:
-                        if " - " in text:
-                            data[col] = text.split(" - ")[0].strip()
+                        match_idx = widget.findText(text)
+                        if match_idx >= 0:
+                            val = widget.itemData(match_idx)
+                            if isinstance(val, CommuneInfo):
+                                data[col] = val.code_3cap
+                            elif val is not None and str(val) != "":
+                                data[col] = str(val)
+                            elif " - " in text:
+                                data[col] = text.split(" - ")[0].strip()
+                            else:
+                                data[col] = text
                         else:
-                            data[col] = text
+                            if " - " in text:
+                                data[col] = text.split(" - ")[0].strip()
+                            else:
+                                data[col] = text
             elif isinstance(widget, QCheckBox):
                 data[col] = "1" if widget.isChecked() else "0"
 
@@ -1670,8 +1692,10 @@ class AttributeFormWidget(QWidget):
                 data[c] = ""
 
         if hasattr(self, 'chk_has_han_che') and not self.chk_has_han_che.isChecked():
-            for c in range(111, 118):
+            for c in (111, 113, 114, 115, 116, 117):
                 data[c] = ""
+            if not data.get(112):
+                data[112] = ""
 
         if hasattr(self, 'chk_has_nvtc') and not self.chk_has_nvtc.isChecked():
             for c in range(118, 124):
@@ -1723,12 +1747,15 @@ class AttributeFormWidget(QWidget):
                     continue
 
                 if col == 93:
-                    # Searchable commune by location text or code
+                    import re
+                    if val.startswith("Xã "):
+                        val = "xã " + val[3:]
                     found = False
+                    val_clean = re.sub(r'\s*\(\d+\)\s*$', '', val).strip().lower()
                     for i in range(widget.count()):
-                        c_data = str(widget.itemData(i) or "")
-                        c_text = widget.itemText(i)
-                        if val.lower() in c_data.lower() or val.lower() in c_text.lower() or c_data == val:
+                        c_data = str(widget.itemData(i) or "").strip().lower()
+                        c_text = widget.itemText(i).strip().lower()
+                        if val_clean == c_data or val_clean == c_text or val_clean in c_data or val_clean in c_text:
                             widget.setCurrentIndex(i)
                             found = True
                             break
