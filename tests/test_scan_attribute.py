@@ -315,15 +315,15 @@ def test_measurement_data_lookup_col_47_50(qapp):
     assert "Xí nghiệp tài nguyên và môi trường 3" in meas.measuring_unit
     assert "21/12/2017" in meas.completion_date
 
-    # 2. Select Hà Khánh in Col 93 (Thửa đất) -> saves location to Col 93, omits 91 & 94
+    # 2. Select xã Đầm Hà in Col 93 (Thửa đất) -> saves 'xã Đầm Hà' to Col 93, omits 91 & 94
     for i in range(fw.cmb_thua_xa.count()):
         text = fw.cmb_thua_xa.itemText(i)
-        if "hà khánh" in text.lower():
+        if "đầm hà" in text.lower():
             fw.cmb_thua_xa.setCurrentIndex(i)
             break
 
     attrs = fw.get_attr_dict()
-    assert "Hà Khánh" in attrs.get(93, "")
+    assert attrs.get(93, "") == "xã Đầm Hà"
     assert attrs.get(91, "") == ""
     assert attrs.get(94, "") == ""
 

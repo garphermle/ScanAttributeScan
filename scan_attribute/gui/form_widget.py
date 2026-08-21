@@ -285,18 +285,18 @@ class AttributeFormWidget(QWidget):
         r_xa.addWidget(self.cmb_thua_xa, stretch=1)
         focus_layout.addLayout(r_xa)
 
-        # Row 5: Diện tích (52)
+        # Row 5: Diện tích pháp lý (53)
         r_dt = QHBoxLayout()
-        lbl_dt = QLabel("📐 Diện tích (52):")
+        lbl_dt = QLabel("📐 Diện tích (53):")
         lbl_dt.setProperty("class", "focus-label")
         lbl_dt.setFixedWidth(160)
-        self.txt_dt_bando = QLineEdit()
-        self.txt_dt_bando.setProperty("class", "focus-input")
-        self.txt_dt_bando.setPlaceholderText("Ví dụ: 120.5 (m2)")
-        self.txt_dt_bando.textChanged.connect(self._auto_sync_dt_bando)
-        self._register_input(52, self.txt_dt_bando)
+        self.txt_dt_phaply = QLineEdit()
+        self.txt_dt_phaply.setProperty("class", "focus-input")
+        self.txt_dt_phaply.setPlaceholderText("Ví dụ: 120.5 (m2)")
+        self.txt_dt_phaply.textChanged.connect(self._auto_sync_dt_phaply)
+        self._register_input(53, self.txt_dt_phaply)
         r_dt.addWidget(lbl_dt)
-        r_dt.addWidget(self.txt_dt_bando, stretch=1)
+        r_dt.addWidget(self.txt_dt_phaply, stretch=1)
         focus_layout.addLayout(r_dt)
 
         # Row 6: Ghi chú trang 2 (110)
@@ -373,11 +373,11 @@ class AttributeFormWidget(QWidget):
         btn_row.addWidget(self.btn_save)
         root_layout.addLayout(btn_row)
 
-        # Tab Order: 43 -> 44 -> 93 -> 52 -> 110 -> Save
+        # Tab Order: 43 -> 44 -> 93 -> 53 -> 110 -> Save
         QWidget.setTabOrder(self.txt_thua_so, self.txt_thua_to)
         QWidget.setTabOrder(self.txt_thua_to, self.cmb_thua_xa)
-        QWidget.setTabOrder(self.cmb_thua_xa, self.txt_dt_bando)
-        QWidget.setTabOrder(self.txt_dt_bando, self.txt_ghi_chu_t2)
+        QWidget.setTabOrder(self.cmb_thua_xa, self.txt_dt_phaply)
+        QWidget.setTabOrder(self.txt_dt_phaply, self.txt_ghi_chu_t2)
         QWidget.setTabOrder(self.txt_ghi_chu_t2, self.btn_save)
 
         self.active_input_widget = self.txt_thua_so
@@ -558,7 +558,7 @@ class AttributeFormWidget(QWidget):
         self._register_input(4, self.txt_barcode)
 
         self.cmb_loai_gcn = SearchableComboBox()
-        self.cmb_loai_gcn.addItem("[Không chọn]", "")
+        self.cmb_loai_gcn.addItem("", "")
         for g in self.master_data.gcn_types:
             self.cmb_loai_gcn.addItem(g, g)
         self._register_input(99, self.cmb_loai_gcn)
@@ -578,13 +578,13 @@ class AttributeFormWidget(QWidget):
         self._register_input(103, self.txt_nguoi_ky)
 
         self.cmb_uy_quyen_ky = SearchableComboBox()
-        self.cmb_uy_quyen_ky.addItem("[Không chọn]", "")
+        self.cmb_uy_quyen_ky.addItem("", "")
         self.cmb_uy_quyen_ky.addItem("0 - Không ủy quyền", "0")
         self.cmb_uy_quyen_ky.addItem("1 - Có ủy quyền", "1")
         self._register_input(104, self.cmb_uy_quyen_ky)
 
         self.cmb_ky_thay = SearchableComboBox()
-        self.cmb_ky_thay.addItem("[Không chọn]", "")
+        self.cmb_ky_thay.addItem("", "")
         self.cmb_ky_thay.addItem("0 - Ký trực tiếp", "0")
         self.cmb_ky_thay.addItem("1 - Ký thay (KT.)", "1")
         self._register_input(105, self.cmb_ky_thay)
@@ -629,7 +629,7 @@ class AttributeFormWidget(QWidget):
         self._register_input(5, self.txt_chu_ma)
 
         self.cmb_chu_dtsd = SearchableComboBox()
-        self.cmb_chu_dtsd.addItem("[Không chọn]", "")
+        self.cmb_chu_dtsd.addItem("", "")
         if self.master_data.dtsd_list:
             for code, name in self.master_data.dtsd_list:
                 self.cmb_chu_dtsd.addItem(f"{code} - {name}", code)
@@ -640,13 +640,13 @@ class AttributeFormWidget(QWidget):
         self._register_input(6, self.cmb_chu_dtsd)
 
         self.cmb_chu_hgd = SearchableComboBox()
-        self.cmb_chu_hgd.addItem("[Không chọn]", "")
+        self.cmb_chu_hgd.addItem("", "")
         self.cmb_chu_hgd.addItem("0 - Không phải HGD", "0")
         self.cmb_chu_hgd.addItem("1 - Là Hộ gia đình", "1")
         self._register_input(7, self.cmb_chu_hgd)
 
         self.cmb_chu_daidien = SearchableComboBox()
-        self.cmb_chu_daidien.addItem("[Không chọn]", "")
+        self.cmb_chu_daidien.addItem("", "")
         self.cmb_chu_daidien.addItem("0 - Không phải đại diện", "0")
         self.cmb_chu_daidien.addItem("1 - Là người đại diện", "1")
         self._register_input(8, self.cmb_chu_daidien)
@@ -671,7 +671,7 @@ class AttributeFormWidget(QWidget):
         self._register_input(12, self.txt_chu_nam_sinh)
 
         self.cmb_chu_id_type = SearchableComboBox()
-        self.cmb_chu_id_type.addItem("[Không chọn]", "")
+        self.cmb_chu_id_type.addItem("", "")
         for code, label in self.master_data.id_types:
             self.cmb_chu_id_type.addItem(label, code)
         self._register_input(13, self.cmb_chu_id_type)
@@ -684,7 +684,7 @@ class AttributeFormWidget(QWidget):
         self._register_input(15, self.txt_chu_id_date)
 
         self.txt_chu_id_place = SearchableComboBox()
-        self.txt_chu_id_place.addItem("[Không chọn]", "")
+        self.txt_chu_id_place.addItem("", "")
         for opt in DEFAULT_NOI_CAP_LIST:
             self.txt_chu_id_place.addItem(opt, opt)
         self._register_input(16, self.txt_chu_id_place)
@@ -716,13 +716,13 @@ class AttributeFormWidget(QWidget):
         self._register_input(23, self.txt_chu_phone)
 
         self.cmb_chu_dantoc = SearchableComboBox()
-        self.cmb_chu_dantoc.addItem("[Không chọn]", "")
+        self.cmb_chu_dantoc.addItem("", "")
         for eth in self.master_data.ethnicities:
             self.cmb_chu_dantoc.addItem(eth, eth)
         self._register_input(24, self.cmb_chu_dantoc)
 
         self.cmb_chu_quoctich = SearchableComboBox()
-        self.cmb_chu_quoctich.addItem("[Không chọn]", "")
+        self.cmb_chu_quoctich.addItem("", "")
         for nat in self.master_data.nationalities:
             self.cmb_chu_quoctich.addItem(nat, nat)
         self._register_input(25, self.cmb_chu_quoctich)
@@ -783,7 +783,7 @@ class AttributeFormWidget(QWidget):
         self._register_input(29, self.txt_vo_nam_sinh)
         
         self.cmb_vo_id_type = SearchableComboBox()
-        self.cmb_vo_id_type.addItem("[Không chọn]", "")
+        self.cmb_vo_id_type.addItem("", "")
         for code, label in self.master_data.id_types:
             self.cmb_vo_id_type.addItem(label, code)
         self._register_input(30, self.cmb_vo_id_type)
@@ -795,7 +795,7 @@ class AttributeFormWidget(QWidget):
         self._register_input(32, self.txt_vo_id_date)
         
         self.txt_vo_id_place = SearchableComboBox()
-        self.txt_vo_id_place.addItem("[Không chọn]", "")
+        self.txt_vo_id_place.addItem("", "")
         for opt in DEFAULT_NOI_CAP_LIST:
             self.txt_vo_id_place.addItem(opt, opt)
         self._register_input(33, self.txt_vo_id_place)
@@ -826,13 +826,13 @@ class AttributeFormWidget(QWidget):
         self._register_input(40, self.txt_vo_phone)
         
         self.cmb_vo_dantoc = SearchableComboBox()
-        self.cmb_vo_dantoc.addItem("[Không chọn]", "")
+        self.cmb_vo_dantoc.addItem("", "")
         for eth in self.master_data.ethnicities:
             self.cmb_vo_dantoc.addItem(eth, eth)
         self._register_input(41, self.cmb_vo_dantoc)
         
         self.cmb_vo_quoctich = SearchableComboBox()
-        self.cmb_vo_quoctich.addItem("[Không chọn]", "")
+        self.cmb_vo_quoctich.addItem("", "")
         for nat in self.master_data.nationalities:
             self.cmb_vo_quoctich.addItem(nat, nat)
         self._register_input(42, self.cmb_vo_quoctich)
@@ -874,13 +874,13 @@ class AttributeFormWidget(QWidget):
         self.txt_tyle = self.txt_ty_le  # Alias
 
         self.cmb_loai_bando = SearchableComboBox()
-        self.cmb_loai_bando.addItem("[Không chọn]", "")
+        self.cmb_loai_bando.addItem("", "")
         for code, name in self.master_data.map_types:
             self.cmb_loai_bando.addItem(name, code)
         self._register_input(46, self.cmb_loai_bando)
 
         self.cmb_don_vi_do = SearchableComboBox()
-        self.cmb_don_vi_do.addItem("[Không chọn]", "")
+        self.cmb_don_vi_do.addItem("", "")
         for u in ["Xí nghiệp tài nguyên và môi trường 3", "Trung tâm kỹ thuật CNTT", "Công ty CP Đo đạc Bản đồ"]:
             self.cmb_don_vi_do.addItem(u, u)
         self._register_input(47, self.cmb_don_vi_do)
@@ -898,7 +898,7 @@ class AttributeFormWidget(QWidget):
         self._register_input(50, self.txt_ngay_hoan_thanh)
         
         self.cmb_trang_thai = SearchableComboBox()
-        self.cmb_trang_thai.addItem("[Không chọn]", "")
+        self.cmb_trang_thai.addItem("", "")
         if self.master_data.land_status_list:
             for code, name in self.master_data.land_status_list:
                 self.cmb_trang_thai.addItem(f"{code} - {name}", code)
@@ -908,12 +908,11 @@ class AttributeFormWidget(QWidget):
         self._register_input(51, self.cmb_trang_thai)
         self.cmb_phan_loai_thua = self.cmb_trang_thai  # Alias
 
-        self.txt_dt_bando_tab = QLineEdit("")
-        self.txt_dt_bando.textChanged.connect(self.txt_dt_bando_tab.setText)
-        self.txt_dt_bando_tab.textChanged.connect(self.txt_dt_bando.setText)
-        self.txt_dt_phaply = QLineEdit("")
-        self.txt_dt_phaply.textChanged.connect(self._auto_sync_dt_phaply)
-        self._register_input(53, self.txt_dt_phaply)
+        self.txt_dt_bando = QLineEdit("")
+        self._register_input(52, self.txt_dt_bando)
+        self.txt_dt_phaply_tab = QLineEdit("")
+        self.txt_dt_phaply.textChanged.connect(self.txt_dt_phaply_tab.setText)
+        self.txt_dt_phaply_tab.textChanged.connect(self.txt_dt_phaply.setText)
 
         # MĐSD 1 (54-61)
         self.cmb_mdsd1_loai = SearchableComboBox()
@@ -924,7 +923,7 @@ class AttributeFormWidget(QWidget):
         self._register_input(56, self.txt_mdsd1_dt)
         
         self.cmb_mdsd1_ht = SearchableComboBox()
-        self.cmb_mdsd1_ht.addItem("[Không chọn]", "")
+        self.cmb_mdsd1_ht.addItem("", "")
         self.cmb_mdsd1_ht.addItem("0 - Sử dụng riêng", "0")
         self.cmb_mdsd1_ht.addItem("1 - Sử dụng chung", "1")
         self._register_input(57, self.cmb_mdsd1_ht)
@@ -959,7 +958,7 @@ class AttributeFormWidget(QWidget):
         self._register_input(64, self.txt_mdsd2_dt)
         
         self.cmb_mdsd2_ht = SearchableComboBox()
-        self.cmb_mdsd2_ht.addItem("[Không chọn]", "")
+        self.cmb_mdsd2_ht.addItem("", "")
         self.cmb_mdsd2_ht.addItem("0 - Sử dụng riêng", "0")
         self.cmb_mdsd2_ht.addItem("1 - Sử dụng chung", "1")
         self._register_input(65, self.cmb_mdsd2_ht)
@@ -992,7 +991,7 @@ class AttributeFormWidget(QWidget):
         self._register_input(72, self.txt_mdsd3_dt)
         
         self.cmb_mdsd3_ht = SearchableComboBox()
-        self.cmb_mdsd3_ht.addItem("[Không chọn]", "")
+        self.cmb_mdsd3_ht.addItem("", "")
         self.cmb_mdsd3_ht.addItem("0 - Sử dụng riêng", "0")
         self.cmb_mdsd3_ht.addItem("1 - Sử dụng chung", "1")
         self._register_input(73, self.cmb_mdsd3_ht)
@@ -1028,20 +1027,20 @@ class AttributeFormWidget(QWidget):
 
         self.chk_has_quan_ly = QCheckBox("☑ Có Người quản lý thửa đất (96-98)")
         self.cmb_ql_dtsd = SearchableComboBox()
-        self.cmb_ql_dtsd.addItem("[Không chọn]", "")
+        self.cmb_ql_dtsd.addItem("", "")
         self.cmb_ql_dtsd.addItem("0 - Không", "0")
         self.cmb_ql_dtsd.addItem("1 - Có", "1")
         self._register_input(96, self.cmb_ql_dtsd)
 
         self.cmb_hinh_thuc_sd = SearchableComboBox()
-        self.cmb_hinh_thuc_sd.addItem("[Không chọn]", "")
+        self.cmb_hinh_thuc_sd.addItem("", "")
         self.cmb_hinh_thuc_sd.addItem("0 - Sử dụng riêng", "0")
         self.cmb_hinh_thuc_sd.addItem("1 - Sử dụng chung", "1")
         self._register_input(97, self.cmb_hinh_thuc_sd)
         self.txt_ql_name = self.cmb_hinh_thuc_sd  # Alias
 
         self.cmb_trang_thai_thua = SearchableComboBox()
-        self.cmb_trang_thai_thua.addItem("[Không chọn]", "")
+        self.cmb_trang_thai_thua.addItem("", "")
         self.cmb_trang_thai_thua.addItem("1 - Đã đăng ký, chưa cấp GCN", "1")
         self.cmb_trang_thai_thua.addItem("2 - Chưa đăng ký, đủ ĐK cấp GCN", "2")
         self.cmb_trang_thai_thua.addItem("3 - Đã đăng ký, không đủ ĐK cấp GCN", "3")
@@ -1057,7 +1056,7 @@ class AttributeFormWidget(QWidget):
         form.addRow("Ngày HT đo (50):", self.txt_ngay_hoan_thanh)
         form.addRow("Trạng thái cấp (51):", self.cmb_trang_thai)
         form.addRow("DT bản đồ (52):", self.txt_dt_bando)
-        form.addRow("DT pháp lý (53):", self.txt_dt_phaply)
+        form.addRow("DT pháp lý (53):", self.txt_dt_phaply_tab)
         form.addRow("--- MĐSD 1 ---", QLabel(""))
         form.addRow("Loại đất 1 (54):", self.cmb_mdsd1_loai)
         form.addRow("Diện tích 1 (56):", self.txt_mdsd1_dt)
@@ -1109,7 +1108,7 @@ class AttributeFormWidget(QWidget):
         self._setup_form_layout(fhc)
 
         self.cmb_hc_loai = SearchableComboBox()
-        self.cmb_hc_loai.addItem("[Không chọn]", "")
+        self.cmb_hc_loai.addItem("", "")
         for r_code in self.master_data.restriction_types:
             self.cmb_hc_loai.addItem(r_code, r_code)
         self._register_input(111, self.cmb_hc_loai)
@@ -1146,7 +1145,7 @@ class AttributeFormWidget(QWidget):
         self._setup_form_layout(f1)
 
         self.cmb_nvtc_loai = SearchableComboBox()
-        self.cmb_nvtc_loai.addItem("[Không chọn]", "")
+        self.cmb_nvtc_loai.addItem("", "")
         for n_code in self.master_data.nvtc_types:
             self.cmb_nvtc_loai.addItem(n_code, n_code)
         self._register_input(118, self.cmb_nvtc_loai)
@@ -1254,7 +1253,7 @@ class AttributeFormWidget(QWidget):
         self.txt_nha_ket_cau = QLineEdit("")
         self._register_input(138, self.txt_nha_ket_cau)
         self.cmb_nha_cap_hang = SearchableComboBox()
-        self.cmb_nha_cap_hang.addItem("[Không chọn]", "")
+        self.cmb_nha_cap_hang.addItem("", "")
         for rk in self.master_data.rank_types:
             self.cmb_nha_cap_hang.addItem(rk, rk)
         self._register_input(139, self.cmb_nha_cap_hang)
@@ -1307,7 +1306,7 @@ class AttributeFormWidget(QWidget):
         self.txt_ctxd_thoihan = QLineEdit("")
         self._register_input(153, self.txt_ctxd_thoihan)
         self.cmb_ctxd_caphang = SearchableComboBox()
-        self.cmb_ctxd_caphang.addItem("[Không chọn]", "")
+        self.cmb_ctxd_caphang.addItem("", "")
         for rk in self.master_data.rank_types:
             self.cmb_ctxd_caphang.addItem(rk, rk)
         self._register_input(154, self.cmb_ctxd_caphang)
@@ -1423,7 +1422,7 @@ class AttributeFormWidget(QWidget):
         self.txt_tc_ngaycap = QLineEdit("")
         self._register_input(177, self.txt_tc_ngaycap)
         self.cmb_tc_hinhthuc = SearchableComboBox()
-        self.cmb_tc_hinhthuc.addItem("[Không chọn]", "")
+        self.cmb_tc_hinhthuc.addItem("", "")
         self.cmb_tc_hinhthuc.addItem("0 - Sử dụng riêng", "0")
         self.cmb_tc_hinhthuc.addItem("1 - Sử dụng chung", "1")
         self._register_input(178, self.cmb_tc_hinhthuc)
@@ -1461,7 +1460,7 @@ class AttributeFormWidget(QWidget):
         self.txt_gn_dot = QLineEdit("")
         self._register_input(184, self.txt_gn_dot)
         self.cmb_kt_trangthai = SearchableComboBox()
-        self.cmb_kt_trangthai.addItem("[Không chọn]", "")
+        self.cmb_kt_trangthai.addItem("", "")
         self.cmb_kt_trangthai.addItem("0 - Chưa kiểm tra", "0")
         self.cmb_kt_trangthai.addItem("1 - Đã kiểm tra", "1")
         self._register_input(185, self.cmb_kt_trangthai)
@@ -1484,31 +1483,37 @@ class AttributeFormWidget(QWidget):
     # AUTO-SYNC AND HELPER LOGIC
     # -------------------------------------------------------------
     def _populate_communes(self, combo: QComboBox):
-        """Populates commune selector for Col 93 (saving full location text with lowercase 'xã' and no code suffix)."""
+        """Populates commune selector for Col 93 with Dam Ha communes."""
         combo.clear()
-        combo.addItem("[Không chọn]", "")
-        for c in self.master_data.communes:
-            loc = c.full_location
-            combo.addItem(loc, loc)
+        combo.addItem("", "")
+        communes = [
+            "xã Đầm Hà",
+            "thị trấn Đầm Hà",
+            "xã Tân Lập",
+            "xã Tân Bình",
+            "xã Đại Bình"
+        ]
+        for name in communes:
+            combo.addItem(name, name)
 
     def _populate_communes_for_tab(self, combo: QComboBox):
         """Populates commune selector for tabbed fields (Cols 20, 37)."""
         combo.clear()
-        combo.addItem("[Không chọn]", "")
+        combo.addItem("", "")
         for c in self.master_data.communes:
             disp_text = f"{c.code_3cap} - {c.name_3cap}, {c.district}"
             combo.addItem(disp_text, c)
 
     def _populate_land_types(self, combo: QComboBox):
         combo.clear()
-        combo.addItem("[Không chọn]", "")
+        combo.addItem("", "")
         for lt in self.master_data.land_types:
             disp_text = f"{lt.code} - {lt.name}"
             combo.addItem(disp_text, lt.code)
 
     def _populate_land_use_origins(self, combo: QComboBox):
         combo.clear()
-        combo.addItem("[Không chọn]", "")
+        combo.addItem("", "")
         for code, name in self.master_data.land_use_origins:
             disp_text = f"{code} - {name}"
             combo.addItem(disp_text, code)
@@ -1643,9 +1648,14 @@ class AttributeFormWidget(QWidget):
                 else:
                     if col == 93:
                         import re
-                        cleaned = re.sub(r'\s*\(\d+\)\s*$', '', text).strip()
+                        cleaned = text.split(",")[0].strip()
+                        cleaned = re.sub(r'\s*\(\d+\)\s*$', '', cleaned).strip()
                         if cleaned.startswith("Xã "):
                             cleaned = "xã " + cleaned[3:]
+                        elif cleaned.startswith("Thị Trấn "):
+                            cleaned = "thị trấn " + cleaned[9:]
+                        elif cleaned.startswith("Thị trấn "):
+                            cleaned = "thị trấn " + cleaned[9:]
                         data[col] = cleaned
                     else:
                         match_idx = widget.findText(text)
@@ -1757,10 +1767,17 @@ class AttributeFormWidget(QWidget):
 
                 if col == 93:
                     import re
-                    if val.startswith("Xã "):
-                        val = "xã " + val[3:]
+                    cleaned = val.split(",")[0].strip()
+                    cleaned = re.sub(r'\s*\(\d+\)\s*$', '', cleaned).strip()
+                    if cleaned.startswith("Xã "):
+                        cleaned = "xã " + cleaned[3:]
+                    elif cleaned.startswith("Thị Trấn "):
+                        cleaned = "thị trấn " + cleaned[9:]
+                    elif cleaned.startswith("Thị trấn "):
+                        cleaned = "thị trấn " + cleaned[9:]
+
                     found = False
-                    val_clean = re.sub(r'\s*\(\d+\)\s*$', '', val).strip().lower()
+                    val_clean = cleaned.lower()
                     for i in range(widget.count()):
                         c_data = str(widget.itemData(i) or "").strip().lower()
                         c_text = widget.itemText(i).strip().lower()
@@ -1769,7 +1786,7 @@ class AttributeFormWidget(QWidget):
                             found = True
                             break
                     if not found:
-                        widget.setEditText(val)
+                        widget.setEditText(cleaned if cleaned else val)
 
                 elif col in (20, 37):
                     match_c = self.master_data.get_commune(val)
