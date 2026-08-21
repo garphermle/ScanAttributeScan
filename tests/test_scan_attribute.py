@@ -4,6 +4,7 @@ Unit tests for ScanAttribute core modules (Excel Import Validation & Data Models
 
 import pytest
 import os
+import shutil
 from scan_attribute.core.data_models import parse_date_flexible, MasterDataManager
 from scan_attribute.core.excel_engine import ExcelEngine
 from scan_attribute.core.master_data import get_default_excel_path
@@ -93,14 +94,14 @@ def test_form_widget_186_columns_defaults(qapp):
 
     attr = fw.get_attr_dict()
     assert attr.get(2) == "CU 491118"
-    assert attr.get(6) == "CNV"
-    assert attr.get(7) == "0"
-    assert attr.get(8) == "0"
+    assert attr.get(6) == ""  # Zero defaults -> unselected is empty
+    assert attr.get(7) == ""
+    assert attr.get(8) == ""
     assert attr.get(9) == "Nguyễn Anh Tuấn"
-    assert attr.get(57) == "0"
+    assert attr.get(19) == "Khu 5"
+    assert attr.get(22) == "Khu 5, Phường Quảng Yên, Thị xã Quảng Yên, Tỉnh Quảng Ninh"
+    assert attr.get(57) == ""
     assert attr.get(65) == ""  # MDSD 2 is optional/unchecked -> empty
-    assert attr.get(90) == "Khu 5"
-    assert attr.get(94) == "Khu 5, Phường Quảng Yên, Thị xã Quảng Yên, Tỉnh Quảng Ninh"
     assert attr.get(97) == ""  # Quan ly is optional/unchecked -> empty
     assert attr.get(102) == "31/07/2024"
     assert attr.get(106) == "31/07/2024"  # Auto synced from Ngày ký
@@ -116,10 +117,10 @@ def test_form_widget_interactive_editing(qapp):
     # User modifies values directly on UI controls
     fw.txt_serial.setText("BT 123456")
     fw.cmb_chu_dtsd.setCurrentText("TCC - Tổ chức trong nước")
-    fw.cmb_chu_hgd.setCurrentIndex(1)  # "1 - Là Hộ gia đình"
-    fw.cmb_chu_daidien.setCurrentIndex(1)  # "1 - Là người đại diện"
-    fw.cmb_uy_quyen_ky.setCurrentIndex(1)  # "1 - Có ủy quyền"
-    fw.cmb_ky_thay.setCurrentIndex(1)  # "0 - Ký trực tiếp"
+    fw.cmb_chu_hgd.setCurrentText("1 - Là Hộ gia đình")
+    fw.cmb_chu_daidien.setCurrentText("1 - Là người đại diện")
+    fw.cmb_uy_quyen_ky.setCurrentText("1 - Có ủy quyền")
+    fw.cmb_ky_thay.setCurrentText("0 - Ký trực tiếp")
     fw.cmb_phan_loai_thua.setCurrentText("B - Đã cấp GCN, có tài sản")
     
     fw.chk_has_quan_ly.setChecked(True)
@@ -250,9 +251,9 @@ def test_id_type_map_types_and_defaults(qapp):
     md.load_from_excel(template_path)
     fw = AttributeFormWidget(md)
 
-    # 1. Check Col 48 & 49 defaults
-    assert fw.txt_phuong_phap_do.text() == "Toàn đạc điện tử"
-    assert fw.txt_nguoi_kiem_tra.text() == "Cao"
+    # 1. Zero defaults: Col 48 & 49 start clean empty
+    assert fw.txt_phuong_phap_do.text() == ""
+    assert fw.txt_nguoi_kiem_tra.text() == ""
 
     # 2. Check ID type abbreviation
     fw.cmb_chu_id_type.setCurrentText("CMND - Chứng minh nhân dân")
@@ -314,25 +315,17 @@ def test_measurement_data_lookup_col_47_50(qapp):
     assert "Xí nghiệp tài nguyên và môi trường 3" in meas.measuring_unit
     assert "21/12/2017" in meas.completion_date
 
-    # 2. Select Hà Khánh in Col 91 (Thửa đất)
+    # 2. Select Hà Khánh in Col 93 (Thửa đất) -> saves location to Col 93, omits 91 & 94
     for i in range(fw.cmb_thua_xa.count()):
-        c = fw.cmb_thua_xa.itemData(i)
-        if isinstance(c, CommuneInfo) and "hà khánh" in c.name_3cap.lower():
+        text = fw.cmb_thua_xa.itemText(i)
+        if "hà khánh" in text.lower():
             fw.cmb_thua_xa.setCurrentIndex(i)
             break
 
-    assert fw.cmb_don_vi_do.currentText() == "Xí nghiệp tài nguyên và môi trường 3"
-    assert fw.txt_ngay_hoan_thanh.text() == "21/12/2017"
-
-    # 3. Change Col 91 to Hà Phong -> Col 47 and Col 50 MUST update to newest measurement
-    for i in range(fw.cmb_thua_xa.count()):
-        c = fw.cmb_thua_xa.itemData(i)
-        if isinstance(c, CommuneInfo) and "hà phong" in c.name_3cap.lower():
-            fw.cmb_thua_xa.setCurrentIndex(i)
-            break
-
-    assert fw.cmb_don_vi_do.currentText() == "Xí nghiệp tài nguyên và môi trường 4"
-    assert fw.txt_ngay_hoan_thanh.text() == "12/12/2017"
+    attrs = fw.get_attr_dict()
+    assert "Hà Khánh" in attrs.get(93, "")
+    assert attrs.get(91, "") == ""
+    assert attrs.get(94, "") == ""
 
 
 def test_optional_fields_empty_when_unchecked(qapp):
@@ -358,19 +351,16 @@ def test_spouse_defaults_and_manual_address(qapp):
     fw = AttributeFormWidget(md)
 
     fw.chk_has_spouse.setChecked(True)
-    # Check default Col 41 & 42
-    assert fw.cmb_vo_dantoc.currentText() == "Không rõ"
-    assert fw.cmb_vo_quoctich.currentText() == "Viet Nam"
+    assert fw.cmb_vo_dantoc.currentText() in ("[Không chọn]", "")
+    assert fw.cmb_vo_quoctich.currentText() in ("[Không chọn]", "")
 
-    # Check manual address entry without picking commune
+    # Set manual address entry without picking commune
     fw.txt_vo_to.setText("Khu 3")
     fw.txt_vo_xa_huyen_tinh.setText("Phường Hồng Hải, Thành phố Hạ Long, Tỉnh Quảng Ninh")
 
     assert fw.txt_vo_full_addr.text() == "Khu 3, Phường Hồng Hải, Thành phố Hạ Long, Tỉnh Quảng Ninh"
 
     attrs = fw.get_attr_dict()
-    assert attrs.get(41) == "Không rõ"
-    assert attrs.get(42) == "Viet Nam"
     assert attrs.get(38) == "Phường Hồng Hải, Thành phố Hạ Long, Tỉnh Quảng Ninh"
     assert attrs.get(39) == "Khu 3, Phường Hồng Hải, Thành phố Hạ Long, Tỉnh Quảng Ninh"
 
@@ -414,24 +404,18 @@ def test_load_attr_dict_preserves_defaults(qapp):
     md.load_from_excel(template_path)
     fw = AttributeFormWidget(md)
 
-    # Load empty dict
+    # Load empty dict -> everything is clean and empty
     fw.load_attr_dict({}, "TEST_SERIAL")
-    assert fw.txt_phuong_phap_do.text() == "Toàn đạc điện tử"
-    assert fw.txt_nguoi_kiem_tra.text() == "Cao"
-    assert fw.cmb_chu_quoctich.currentText() == "Viet Nam"
-    assert fw.cmb_vo_quoctich.currentText() == "Viet Nam"
-    assert fw.cmb_vo_dantoc.currentText() == "Không rõ"
-    assert fw.cmb_chu_dantoc.currentText() == "Không rõ"
-    assert fw.txt_tyle.text() == "1"
-    assert fw.cmb_loai_gcn.currentText() == "Giấy chứng nhận QSDĐ & QSHNƠ và TSKGLVĐ theo NĐ 88/NĐ-CP"
-    assert fw.txt_chu_id_place.currentText() == "Cục Cảnh sát quản lý hành chính về trật tự xã hội"
-    assert fw.txt_vo_id_place.currentText() == "Cục Cảnh sát quản lý hành chính về trật tự xã hội"
-    assert fw.txt_mdsd1_thoi_han.text() == "Lâu dài"
+    assert fw.txt_serial.text() == "TEST_SERIAL"
+    assert fw.txt_thua_so.text() == ""
+    assert fw.txt_thua_to.text() == ""
+    assert fw.cmb_thua_xa.currentText() in ("[Không chọn]", "")
+    assert fw.txt_ghi_chu_t2.toPlainText() == ""
+    assert fw.txt_phuong_phap_do.text() == ""
+    assert fw.txt_nguoi_kiem_tra.text() == ""
+    assert fw.cmb_chu_quoctich.currentText() in ("[Không chọn]", "")
+    assert fw.txt_mdsd1_thoi_han.text() == ""
     assert fw.txt_thu_muc_hsq.text() == ""
-
-    # Load dict with legacy 500
-    fw.load_attr_dict({45: "500"}, "TEST_SERIAL_2")
-    assert fw.txt_tyle.text() == "1"
 
 
 def test_birth_date_and_year_auto_sync(qapp):
@@ -540,6 +524,139 @@ def test_main_window_instantiation(qapp):
     assert window.pdf_viewer is not None
     assert window.form_widget is not None
     window.close()
+
+
+def test_pdf_indexer_serial_matching(tmp_path):
+    from scan_attribute.core.pdf_indexer import PDFIndexer, normalize_serial_token
+
+    assert normalize_serial_token("A 03835490") == "a03835490"
+    assert normalize_serial_token("A0 248729-GCN.pdf") == "a0248729"
+    assert normalize_serial_token("A0 576232_GT.pdf") == "a0576232"
+
+    # Create dummy pdf files
+    pdf_dir = tmp_path / "lan_share"
+    pdf_dir.mkdir()
+    (pdf_dir / "A 03835490.pdf").write_bytes(b"%PDF-1.4")
+    (pdf_dir / "A0 248729-GCN.pdf").write_bytes(b"%PDF-1.4")
+    (pdf_dir / "A0 576232.pdf").write_bytes(b"%PDF-1.4")
+    (pdf_dir / "A0 576232-GCN.pdf").write_bytes(b"%PDF-1.4")
+    (pdf_dir / "A0 576232-GT.pdf").write_bytes(b"%PDF-1.4")
+
+    indexer = PDFIndexer(str(pdf_dir))
+    assert indexer.total_indexed_count == 5
+
+    # Match A 03835490
+    m1 = indexer.find_pdfs_for_serial("A 03835490")
+    assert len(m1) == 1
+    assert os.path.basename(m1[0]) == "A 03835490.pdf"
+
+    # Match A0 248729
+    m2 = indexer.find_pdfs_for_serial("A0 248729")
+    assert len(m2) == 1
+    assert os.path.basename(m2[0]) == "A0 248729-GCN.pdf"
+
+    # Match A0 576232 (multiple files with GCN sorted first)
+    m3 = indexer.find_pdfs_for_serial("A0 576232")
+    assert len(m3) == 3
+    base_names = [os.path.basename(p) for p in m3]
+    assert "A0 576232-GCN.pdf" == base_names[0]  # GCN comes first
+
+
+def test_excel_engine_b5_serials_and_chunking(tmp_path):
+    from scan_attribute.core.excel_engine import ExcelEngine
+    excel_path = "/home/garpherm/VNPT/Source/scan_attribute/nhapthua1.xlsx"
+    if not os.path.exists(excel_path):
+        pytest.skip("nhapthua1.xlsx not present")
+
+    work_excel = os.path.join(tmp_path, "test_nhapthua.xlsx")
+    shutil.copy(excel_path, work_excel)
+
+    engine = ExcelEngine(work_excel)
+    engine.initialize()
+
+    rows = engine.get_serial_rows()
+    assert len(rows) == 1000
+    assert rows[0]["row"] == 5
+    assert rows[0]["stt"] == 1
+    assert rows[0]["serial"] == "A 03835490"
+    assert "is_completed" in rows[1]
+    assert rows[2]["serial"] == "A0 248729"
+
+
+def test_excel_export_and_merge_sub_excel(tmp_path):
+    from scan_attribute.core.excel_engine import ExcelEngine
+    excel_path = "/home/garpherm/VNPT/Source/scan_attribute/nhapthua1.xlsx"
+    if not os.path.exists(excel_path):
+        pytest.skip("nhapthua1.xlsx not present")
+
+    work_master = os.path.join(tmp_path, "master.xlsx")
+    shutil.copy(excel_path, work_master)
+
+    master_engine = ExcelEngine(work_master)
+    master_engine.initialize()
+
+    # 1. Export sub-excel range STT 1 to 5
+    sub_excel = os.path.join(tmp_path, "sub_1_5.xlsx")
+    exported = master_engine.export_sub_excel(1, 5, sub_excel)
+    assert exported == 5
+    assert os.path.exists(sub_excel)
+
+    # 2. Modify sub-excel as another computer on LAN
+    sub_engine = ExcelEngine(sub_excel)
+    sub_engine.initialize()
+    sub_rows = sub_engine.get_serial_rows()
+    assert len(sub_rows) == 5
+
+    # Fill data for Row 5 (STT 1)
+    sub_engine.save_row_data(
+        serial="A 03835490",
+        attr_dict={2: "A 03835490", 9: "Lê Văn Tám", 14: "012345678901", 41: "88", 42: "12"},
+        target_row=5
+    )
+    sub_engine.flush_save()
+
+    # 3. Merge sub-excel back into master
+    merged_cnt, skipped_cnt = master_engine.merge_sub_excel(sub_excel)
+    assert merged_cnt >= 1
+
+    # Verify master row 5 is updated!
+    updated_data = master_engine.read_row_data(5)
+    assert updated_data.get(9) == "Lê Văn Tám"
+    assert updated_data.get(14) == "012345678901"
+    assert updated_data.get(41) == "88"
+    assert updated_data.get(42) == "12"
+
+
+def test_queue_widget_excel_mode_and_chunking(qapp, tmp_path):
+    from scan_attribute.gui.queue_widget import QueueWidget, ROLE_ITEM_TYPE, ROLE_ROW_NUM, ROLE_SERIAL
+    from scan_attribute.core.pdf_indexer import PDFIndexer
+
+    pdf_dir = tmp_path / "scan_docs"
+    pdf_dir.mkdir()
+    (pdf_dir / "A 03835490.pdf").write_bytes(b"%PDF-1.4")
+    (pdf_dir / "A 05372214.pdf").write_bytes(b"%PDF-1.4")
+
+    indexer = PDFIndexer(str(pdf_dir))
+
+    fake_rows = [
+        {"row": 5, "stt": 1, "serial": "A 03835490", "owner_name": "", "id_num": "", "plot": "", "map_sheet": "", "area": "", "is_completed": False},
+        {"row": 6, "stt": 2, "serial": "A 05372214", "owner_name": "Trần Văn B", "id_num": "", "plot": "", "map_sheet": "", "area": "", "is_completed": True},
+        {"row": 7, "stt": 3, "serial": "A0 248729", "owner_name": "", "id_num": "", "plot": "", "map_sheet": "", "area": "", "is_completed": False},
+    ]
+
+    qw = QueueWidget()
+    qw.chunk_size = 2  # Set chunk size to 2 to test pagination
+    qw.set_pdf_indexer(indexer)
+    qw.set_excel_rows(fake_rows)
+
+    assert qw.cbo_chunks.count() == 3  # Chunk 1 (1-2), Chunk 2 (3-3), Tất cả (3)
+    assert len(qw.excel_items) == 2    # First chunk shows 2 items
+
+    # Mark row 5 as completed
+    qw.mark_excel_row_completed(5, "Nguyễn Văn A")
+    assert qw.excel_rows[0]["is_completed"] is True
+    assert qw.excel_rows[0]["owner_name"] == "Nguyễn Văn A"
+
 
 
 

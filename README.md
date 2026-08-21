@@ -88,10 +88,51 @@ PYTHONPATH=/home/garpherm/VNPT/Source/scan_attribute /home/garpherm/VNPT/Source/
 
 ## 📋 Luồng làm việc siêu tốc (45s/Hồ sơ)
 
-1. Mở app -> Chọn thư mục gốc (nơi chứa các folder bóc tách từ `pdfsplit`).
-2. App liệt kê toàn bộ các folder (`CU 491118`...).
-3. Nhấn vào hồ sơ:
-   - PDF bên trái mở tức thì `GCN.pdf`.
-   - Tool tự nạp mã `CU 491118` và kiểm tra nếu đã có trong Excel.
-4. Mắt lướt PDF bên trái, tay gõ/Tab hoặc kéo chuột OCR bên phải.
-5. Nhấn `Ctrl+Enter` -> Excel ghi nhận dòng mới -> App tự nảy sang hồ sơ kế tiếp!
+### 1. Luồng nhập theo Danh mục Excel có sẵn Số Serial (`nhapthua1.xlsx` / B5+) & Thư mục LAN 22.000 file:
+1. Mở app -> Chọn file Excel đích (ví dụ `nhapthua1.xlsx`) và Thư mục Scan LAN (`\\DUCMT-THA\kho dung chung` hoặc thư mục chứa 22.000 file PDF).
+2. App tự động index 22.000 file PDF trong 0.2s và nạp toàn bộ danh sách Số Serial từ cột B (dòng B5 trở đi).
+3. **Phân chia theo khoảng (Chunking)**: Chọn khoảng STT cần làm (ví dụ: `STT 1 - 500`, `STT 501 - 1000`...).
+4. Chọn hồ sơ bất kỳ:
+   - Tool tự động khớp và mở đúng file PDF tương ứng trong kho LAN (kể cả file có thêm hậu tố `-GCN`, `_GT`, khoảng trắng `A 03835490` vs `A0248729`).
+   - Nạp dữ liệu hiện có từ Excel vào Form 5 Tab.
+5. Nhập liệu / Kéo OCR -> Nhấn `Ctrl + Enter`:
+   - Tool ghi đè dữ liệu trực tiếp vào đúng dòng trong file Excel.
+   - Đánh dấu trạng thái xanh lá (`✅ Đã sửa - STT X: Serial Y (Dòng Z)`).
+   - Tự động nhảy sang dòng tiếp theo trong khoảng đang chọn!
+
+### 2. Luồng phối hợp nhóm nhiều máy trong mạng LAN:
+- **Tách file khoảng**: Bấm nút **"📑 Tách Khoảng LAN"** -> Chọn khoảng STT (ví dụ STT 1-500) -> App xuất file con riêng để giao cho máy khác nhập độc lập.
+- **Gộp dữ liệu**: Sau khi máy khác nhập xong, bấm nút **"📥 Gộp File LAN"** -> Chọn file con -> App tự động đồng bộ dữ liệu vào đúng vị trí trên file Excel chính!
+
+---
+
+## 📁 Cấu trúc thư mục ứng dụng
+
+```text
+/home/garpherm/VNPT/Source/scan_attribute/
+├── scan_attribute/
+│   ├── main.py                  # Entry point PySide6
+│   ├── core/
+│   │   ├── data_models.py       # Dataclass & Master Data Loader
+│   │   ├── excel_engine.py      # openpyxl Read/Write 186 cột, Export/Merge khoảng LAN
+│   │   ├── pdf_indexer.py       # Bộ máy index & khớp serial siêu tốc 22.000+ files
+│   │   ├── pdf_engine.py        # High-speed PDF renderer (pypdfium2)
+│   │   ├── ocr_engine.py        # Crop Snippet RapidOCR engine
+│   │   ├── file_tracker.py      # Ghi nhớ lịch sử hàng đợi
+│   │   └── master_data.py       # Path locator
+│   ├── gui/
+│   │   ├── main_window.py       # Cửa sổ chính Splitter UI & LAN Actions
+│   │   ├── pdf_viewer.py        # PDF Viewer + Crop OCR RubberBand
+│   │   ├── queue_widget.py      # Danh sách hàng đợi 3 chế độ + Phân khoảng STT
+│   │   ├── form_widget.py       # Form 5 Tab ánh xạ 186 cột
+│   │   └── components/
+│   │       └── search_combo.py  # Dropdown tìm kiếm thông minh
+│   └── resources/
+│       └── Excel_FormMau.xlsx  # Mẫu Excel chuẩn kèm theo
+├── tests/
+│   └── test_scan_attribute.py   # Unit tests kiểm thử (28 test cases)
+├── nhapthua1.xlsx               # File dữ liệu thực tế mẫu
+├── run.sh                       # Script khởi chạy nhanh
+├── pyproject.toml
+└── README.md
+```

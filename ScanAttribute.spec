@@ -1,12 +1,38 @@
 # -*- mode: python ; coding: utf-8 -*-
+import os
+import sys
 
+datas = [
+    ('scan_attribute/resources', 'scan_attribute/resources'),
+    ('scan_attribute/resources', 'resources')
+]
+
+hiddenimports = [
+    'openpyxl',
+    'openpyxl.cell',
+    'openpyxl.styles',
+    'openpyxl.reader.excel',
+    'pypdfium2',
+    'fitz',
+    'cv2',
+    'PIL',
+    'PIL.Image',
+    'pyzbar',
+    'rapidocr_onnxruntime',
+    'onnxruntime',
+    'numpy',
+    'PySide6',
+    'PySide6.QtCore',
+    'PySide6.QtGui',
+    'PySide6.QtWidgets',
+]
 
 a = Analysis(
     ['scan_attribute/main.py'],
-    pathex=[],
+    pathex=['.'],
     binaries=[],
-    datas=[('scan_attribute/resources', 'resources'), ('scan_attribute/resources', 'scan_attribute/resources')],
-    hiddenimports=['openpyxl', 'fitz', 'cv2', 'PIL', 'pyzbar'],
+    datas=datas,
+    hiddenimports=hiddenimports,
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],

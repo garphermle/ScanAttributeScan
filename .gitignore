@@ -35,6 +35,8 @@ MANIFEST
 *.log
 .scan_attribute_history.json
 Copy of QNH_ThongTinDoDac.xlsx
+nhapthua1.xlsx
+photo_*.jpg
 
 # Installer logs
 pip-log.txt

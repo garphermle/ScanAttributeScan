@@ -158,6 +158,7 @@ class PDFViewerWidget(QWidget):
         self.scale_factor = 2.0
         self.rotation = 0
         self.pdf_file_map = {}
+        self._pixmap_cache: Dict[tuple, List[QPixmap]] = {}
         self._init_ui()
 
     def _init_ui(self):
@@ -324,6 +325,42 @@ class PDFViewerWidget(QWidget):
             self.tab_bar.setCurrentIndex(target_tab_idx)
             self._load_current_tab_pdf()
 
+    def load_pdf_list(self, pdf_paths: List[str], select_filename: str = ""):
+        self.tab_bar.blockSignals(True)
+        self.tab_bar.clear()
+        self.pdf_file_map.clear()
+
+        if not pdf_paths:
+            self.tab_bar.blockSignals(False)
+            self.lbl_current_file.setText("⚠️ Chưa tìm thấy file PDF cho hồ sơ này")
+            self.canvas.set_pages([])
+            self.lbl_page.setText("0/0")
+            return
+
+        target_tab_idx = 0
+        for idx, full_path in enumerate(pdf_paths):
+            f = os.path.basename(full_path)
+            if 'gcn' in f.lower():
+                tab_title = f"📜 {f}"
+            elif 'gtk' in f.lower():
+                tab_title = f"📐 {f}"
+            elif 'gt' in f.lower():
+                tab_title = f"📑 {f}"
+            else:
+                tab_title = f"📄 {f}"
+
+            self.tab_bar.addTab(QWidget(), tab_title)
+            self.tab_bar.tabBar().setTabData(idx, full_path)
+            self.pdf_file_map[idx] = full_path
+
+            if select_filename and f.lower() == select_filename.lower():
+                target_tab_idx = idx
+
+        self.tab_bar.blockSignals(False)
+        if self.tab_bar.count() > 0:
+            self.tab_bar.setCurrentIndex(target_tab_idx)
+            self._load_current_tab_pdf()
+
     def select_pdf_tab_by_name(self, filename: str) -> bool:
         """Selects tab matching filename (e.g. CU 491118-GT.pdf). Returns True if found."""
         if not filename:
@@ -359,13 +396,20 @@ class PDFViewerWidget(QWidget):
             self.lbl_current_file.setText("⚠️ Không nạp được PDF")
 
     def _render_all_pages(self):
-        pixmaps = []
-        for i in range(self.pdf_engine.page_count):
-            pixmap, _ = self.pdf_engine.render_page_qpixmap(
-                i, scale=self.scale_factor, rotation=self.rotation
-            )
-            if pixmap and not pixmap.isNull():
-                pixmaps.append(pixmap)
+        cache_key = (self.current_pdf_path, self.scale_factor, self.rotation)
+        if cache_key in self._pixmap_cache:
+            pixmaps = self._pixmap_cache[cache_key]
+        else:
+            pixmaps = []
+            for i in range(self.pdf_engine.page_count):
+                pixmap, _ = self.pdf_engine.render_page_qpixmap(
+                    i, scale=self.scale_factor, rotation=self.rotation
+                )
+                if pixmap and not pixmap.isNull():
+                    pixmaps.append(pixmap)
+            if len(self._pixmap_cache) > 60:
+                self._pixmap_cache.pop(next(iter(self._pixmap_cache)))
+            self._pixmap_cache[cache_key] = pixmaps
         
         self.canvas.set_pages(pixmaps)
         self._update_page_label()

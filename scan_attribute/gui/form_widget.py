@@ -1,17 +1,19 @@
 """
-Form Widget hosting 6 tabbed sections mapping all 186 columns.
-All fields are explicitly visible and editable on the right panel with searchable dropdowns and compact layout.
-Guaranteed no horizontal scrolling needed across all tabs.
+Form Widget with an Ultra-Spacious, High-Visibility Focus Area (Cols 43, 44, 93, 110 + Serial 2)
+and Organized Tabbed Sections (Cols 1-186 + Full 186-column support).
+Col 93 is a full-width SearchableComboBox on its own line. Cols 91 & 94 are omitted from auto-fill.
+Zero default values: clean & empty.
+Designed for ultra-fast keyboard-only and OCR data entry.
 """
 
 from typing import Dict, Any, Optional
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QTabWidget, QFormLayout, 
     QLineEdit, QComboBox, QCheckBox, QLabel, QGroupBox, QPlainTextEdit,
-    QPushButton, QScrollArea, QSplitter, QApplication, QCompleter, QSizePolicy, QFrame
+    QPushButton, QScrollArea, QCompleter, QSizePolicy, QFrame
 )
 from PySide6.QtCore import Qt, Signal
-from PySide6.QtGui import QGuiApplication
+from PySide6.QtGui import QGuiApplication, QFont
 from scan_attribute.core.data_models import MasterDataManager, CommuneInfo, MeasurementInfo
 
 
@@ -26,10 +28,6 @@ DEFAULT_NOI_CAP_LIST = [
 
 
 class VerticalOnlyScrollArea(QScrollArea):
-    """
-    A specialized QScrollArea that strictly forbids horizontal scrolling / shifting
-    when focus events or widget navigation occur, ensuring 100% stable form layout.
-    """
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setWidgetResizable(True)
@@ -44,11 +42,9 @@ class VerticalOnlyScrollArea(QScrollArea):
             self.horizontalScrollBar().setValue(0)
 
     def scrollContentsBy(self, dx, dy):
-        # Force horizontal delta dx to 0 so contents never shift sideways
         super().scrollContentsBy(0, dy)
 
     def ensureWidgetVisible(self, child_widget, xmargin=50, ymargin=50):
-        # Only adjust vertical scrollbar value, keep horizontal scroll value strictly at 0
         if not child_widget or not self.widget():
             return
         try:
@@ -66,12 +62,10 @@ class VerticalOnlyScrollArea(QScrollArea):
                 self.verticalScrollBar().setValue(bottom - viewport_height + ymargin)
         except Exception:
             pass
-
         self.horizontalScrollBar().setValue(0)
 
 
 class SearchableComboBox(QComboBox):
-    """A compact, filterable QComboBox with editable search and substring matching auto-complete."""
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setEditable(True)
@@ -82,14 +76,42 @@ class SearchableComboBox(QComboBox):
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         self.setStyleSheet("""
             QComboBox {
-                min-height: 25px;
-                max-height: 25px;
-                font-size: 12px;
-                padding: 1px 4px;
+                min-height: 34px;
+                max-height: 38px;
+                font-size: 14px;
+                padding: 2px 8px;
+                border: 1.5px solid #90caf9;
+                border-radius: 4px;
+                background-color: #ffffff;
+                color: #0d47a1;
+            }
+            QComboBox:focus {
+                border: 2.5px solid #d32f2f;
+                background-color: #fffde7;
             }
             QComboBox QAbstractItemView {
-                min-width: 320px;
-                font-size: 12px;
+                min-width: 480px;
+                font-size: 13px;
+                background-color: #ffffff;
+                color: #212121;
+                selection-background-color: #1976d2;
+                selection-color: #ffffff;
+                border: 1.5px solid #1976d2;
+                outline: none;
+            }
+            QComboBox QAbstractItemView::item {
+                min-height: 26px;
+                padding: 4px 8px;
+                color: #212121;
+                background-color: #ffffff;
+            }
+            QComboBox QAbstractItemView::item:hover {
+                background-color: #bbdefb;
+                color: #0d47a1;
+            }
+            QComboBox QAbstractItemView::item:selected {
+                background-color: #1976d2;
+                color: #ffffff;
             }
         """)
 
@@ -100,15 +122,14 @@ class SearchableComboBox(QComboBox):
             comp.setCaseSensitivity(Qt.CaseSensitivity.CaseInsensitive)
 
         if self.lineEdit():
-            self.lineEdit().setPlaceholderText("🔍 Tìm / Chọn...")
+            self.lineEdit().setPlaceholderText("🔍 Tìm theo tên hoặc mã xã/phường (gõ để tìm)...")
 
     def wheelEvent(self, event):
-        # Disable changing value on mouse wheel scroll
         event.ignore()
 
 
 class AttributeFormWidget(QWidget):
-    save_requested = Signal()  # Emits on Ctrl+Enter or Save button
+    save_requested = Signal()
 
     def __init__(self, master_data: MasterDataManager, parent=None):
         super().__init__(parent)
@@ -121,90 +142,211 @@ class AttributeFormWidget(QWidget):
         self._init_ui()
 
     def _init_ui(self):
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(2, 2, 2, 2)
-        layout.setSpacing(2)
+        root_layout = QVBoxLayout(self)
+        root_layout.setContentsMargins(4, 4, 4, 4)
+        root_layout.setSpacing(6)
 
-        self.setStyleSheet("""
-            QLineEdit {
-                border: 1px solid #c0c4cc;
-                border-radius: 2px;
-                min-height: 24px;
-                max-height: 26px;
-                padding: 1px 4px;
-                font-size: 12px;
-                background-color: #ffffff;
+        # -------------------------------------------------------------
+        # 1. PRIMARY QUICK-FILL FOCUS AREA (Cols 43, 44, 93, 110 + Serial 2)
+        # -------------------------------------------------------------
+        focus_card = QFrame()
+        focus_card.setStyleSheet("""
+            QFrame#FocusCard {
+                background-color: #f4f9ff;
+                border: 2.5px solid #2196f3;
+                border-radius: 8px;
+                padding: 6px;
             }
-            QLineEdit:focus {
-                border: 2px solid #1976d2;
-                background-color: #e3f2fd;
+            QLabel.focus-label {
+                font-size: 13px;
                 font-weight: bold;
+                color: #0d47a1;
             }
-            QPlainTextEdit {
-                border: 1px solid #c0c4cc;
-                border-radius: 2px;
-                font-size: 12px;
-                background-color: #ffffff;
-            }
-            QPlainTextEdit:focus {
-                border: 2px solid #1976d2;
-                background-color: #e3f2fd;
-            }
-            QScrollBar:vertical {
-                width: 10px;
-                background: #f1f1f1;
-                margin: 0px;
-            }
-            QScrollBar::handle:vertical {
-                background: #c1c1c1;
-                min-height: 20px;
+            QLineEdit.focus-input {
+                font-size: 15px;
+                font-weight: bold;
+                min-height: 34px;
+                max-height: 38px;
+                border: 2px solid #90caf9;
                 border-radius: 4px;
+                padding: 2px 8px;
+                background-color: #ffffff;
+                color: #1a237e;
             }
-            QScrollBar::handle:vertical:hover {
-                background: #a8a8a8;
+            QLineEdit.focus-input:focus {
+                border: 2.5px solid #d32f2f;
+                background-color: #fffde7;
+            }
+            QPlainTextEdit.focus-input {
+                font-size: 14px;
+                font-weight: normal;
+                min-height: 65px;
+                max-height: 85px;
+                border: 2px solid #90caf9;
+                border-radius: 4px;
+                padding: 4px 8px;
+                background-color: #ffffff;
+                color: #212121;
+            }
+            QPlainTextEdit.focus-input:focus {
+                border: 2.5px solid #d32f2f;
+                background-color: #fffde7;
             }
         """)
+        focus_card.setObjectName("FocusCard")
+        focus_layout = QVBoxLayout(focus_card)
+        focus_layout.setContentsMargins(10, 8, 10, 8)
+        focus_layout.setSpacing(8)
 
+        # Header of Focus Card
+        focus_title_row = QHBoxLayout()
+        focus_title = QLabel("⚡ VÙNG NHẬP TRỌNG TÂM (Số thửa • Số tờ • Xã, huyện, tỉnh • Ghi chú T2)")
+        font_title = QFont()
+        font_title.setBold(True)
+        font_title.setPointSize(11)
+        focus_title.setFont(font_title)
+        focus_title.setStyleSheet("color: #0d47a1; font-weight: bold;")
+        focus_title_row.addWidget(focus_title)
+        focus_title_row.addStretch()
+
+        self.btn_toggle_tabs = QPushButton("🔄 Đổi Chế Độ Tab (Tùy Chọn / Đầy Đủ)")
+        self.btn_toggle_tabs.setStyleSheet("""
+            QPushButton {
+                font-size: 12px;
+                padding: 4px 10px;
+                font-weight: bold;
+                background-color: #1976d2;
+                color: white;
+                border-radius: 4px;
+            }
+            QPushButton:hover {
+                background-color: #1565c0;
+            }
+        """)
+        self.btn_toggle_tabs.clicked.connect(self._toggle_view_mode)
+        focus_title_row.addWidget(self.btn_toggle_tabs)
+
+        focus_layout.addLayout(focus_title_row)
+
+        # Row 1: Số Serial (2)
+        r_serial = QHBoxLayout()
+        lbl_s = QLabel("🏷️ Số Serial (2):")
+        lbl_s.setProperty("class", "focus-label")
+        lbl_s.setFixedWidth(160)
+        self.txt_serial = QLineEdit()
+        self.txt_serial.setProperty("class", "focus-input")
+        self.txt_serial.setStyleSheet("background-color: #e8ecef; color: #37474f; font-size: 14px; font-weight: bold; min-height: 32px;")
+        self.txt_serial.textChanged.connect(self._auto_sync_ma_don)
+        self._register_input(2, self.txt_serial)
+        r_serial.addWidget(lbl_s)
+        r_serial.addWidget(self.txt_serial, stretch=1)
+        focus_layout.addLayout(r_serial)
+
+        # Row 2: Số thửa (43) (*)
+        r_thua = QHBoxLayout()
+        lbl_thua = QLabel("📌 Số thửa (43) (*):")
+        lbl_thua.setProperty("class", "focus-label")
+        lbl_thua.setFixedWidth(160)
+        self.txt_thua_so = QLineEdit()
+        self.txt_thua_so.setProperty("class", "focus-input")
+        self.txt_thua_so.setPlaceholderText("Ví dụ: 124 (Tự động đặt con trỏ nhập ở đây)")
+        self._register_input(43, self.txt_thua_so)
+        r_thua.addWidget(lbl_thua)
+        r_thua.addWidget(self.txt_thua_so, stretch=1)
+        focus_layout.addLayout(r_thua)
+
+        # Row 3: Số tờ (44) (*)
+        r_to = QHBoxLayout()
+        lbl_to = QLabel("📄 Số tờ (44) (*):")
+        lbl_to.setProperty("class", "focus-label")
+        lbl_to.setFixedWidth(160)
+        self.txt_thua_to = QLineEdit()
+        self.txt_thua_to.setProperty("class", "focus-input")
+        self.txt_thua_to.setPlaceholderText("Ví dụ: 71")
+        self._register_input(44, self.txt_thua_to)
+        r_to.addWidget(lbl_to)
+        r_to.addWidget(self.txt_thua_to, stretch=1)
+        focus_layout.addLayout(r_to)
+
+        # Row 4: Xã, huyện, tỉnh (93) (*) - Chiếm trọn 1 dòng to rõ
+        r_xa = QHBoxLayout()
+        lbl_xa = QLabel("🏛️ Xã, huyện, tỉnh (93) (*):")
+        lbl_xa.setProperty("class", "focus-label")
+        lbl_xa.setFixedWidth(160)
+
+        self.cmb_thua_xa = SearchableComboBox()
+        self._populate_communes(self.cmb_thua_xa)
+        self._register_input(93, self.cmb_thua_xa)
+
+        # Backward compatibility alias
+        self.txt_thua_xa_huyen_tinh = self.cmb_thua_xa
+
+        r_xa.addWidget(lbl_xa)
+        r_xa.addWidget(self.cmb_thua_xa, stretch=1)
+        focus_layout.addLayout(r_xa)
+
+        # Row 5: Ghi chú trang 2 (110)
+        r_gc = QVBoxLayout()
+        lbl_gc2 = QLabel("📝 Ghi chú trang 2 (110) [Kéo chuột OCR để tự dán vào]:")
+        lbl_gc2.setProperty("class", "focus-label")
+        self.txt_ghi_chu_t2 = QPlainTextEdit()
+        self.txt_ghi_chu_t2.setProperty("class", "focus-input")
+        self.txt_ghi_chu_t2.setPlaceholderText("Nhập nội dung ghi chú trang 2 hoặc quét chuột OCR trên văn bản PDF...")
+        self._register_input(110, self.txt_ghi_chu_t2)
+        r_gc.addWidget(lbl_gc2)
+        r_gc.addWidget(self.txt_ghi_chu_t2)
+        focus_layout.addLayout(r_gc)
+
+        root_layout.addWidget(focus_card)
+
+        # -------------------------------------------------------------
+        # 2. TABBED SECTIONS MAPPING ALL 186 COLUMNS
+        # -------------------------------------------------------------
         self.tab_widget = QTabWidget()
         self.tab_widget.setStyleSheet("""
             QTabBar::tab {
                 font-size: 11px;
                 font-weight: bold;
-                padding: 4px 6px;
+                padding: 4px 8px;
             }
         """)
 
-        # Tab 1: GCN & Ký cấp (Cols 1-4, 99-110)
-        self.tab_widget.addTab(self._create_tab_gcn(), "1. GCN & Ký Cấp")
-        # Tab 2: Chủ sử dụng (Cols 5-25)
-        self.tab_widget.addTab(self._create_tab_chu(), "2. Chủ Sử Dụng")
-        # Tab 3: Vợ (Chồng) (Cols 26-42)
-        self.tab_widget.addTab(self._create_tab_vo_chong(), "3. Vợ / Chồng")
-        # Tab 4: Thửa đất & MĐSD (Cols 43-98)
-        self.tab_widget.addTab(self._create_tab_thua_dat(), "4. Thửa Đất & MĐSD")
-        # Tab 5: NVTC & Hạn chế (Cols 111-133)
-        self.tab_widget.addTab(self._create_tab_nvtc(), "5. NVTC & Hạn Chế")
-        # Tab 6: Tài sản & Lưu kho (Cols 134-186)
-        self.tab_widget.addTab(self._create_tab_tai_san_va_khac(), "6. Tài Sản & Lưu Kho")
+        # Tab 0: GCN & Ký cấp (Cols 1-4, 99-109)
+        self.tab_gcn = self._create_tab_gcn()
+        # Tab 1: Chủ sử dụng (Cols 5-25)
+        self.tab_chu = self._create_tab_chu()
+        # Tab 2: Vợ (Chồng) (Cols 26-42)
+        self.tab_vo = self._create_tab_vo_chong()
+        # Tab 3: Thửa đất & MĐSD (Cols 45-98)
+        self.tab_thua = self._create_tab_thua_dat()
+        # Tab 4: NVTC & Hạn chế (Cols 111-133)
+        self.tab_nvtc = self._create_tab_nvtc()
+        # Tab 5: Tài sản & Lưu kho (Cols 134-186)
+        self.tab_taisan = self._create_tab_tai_san_va_khac()
+
+        self._show_full_tabs = True
+        self._build_tab_list()
 
         self.tab_widget.currentChanged.connect(self._on_tab_switched)
-        layout.addWidget(self.tab_widget)
+        root_layout.addWidget(self.tab_widget, stretch=1)
 
-        # Bottom Action Row
+        # -------------------------------------------------------------
+        # 3. BOTTOM ACTION BAR
+        # -------------------------------------------------------------
         btn_row = QHBoxLayout()
-        btn_row.setContentsMargins(4, 2, 4, 2)
-        self.lbl_status = QLabel("📍 Đang nhắm: Mã vạch")
-        self.lbl_status.setStyleSheet("color: #1565c0; font-weight: bold; font-size: 11px;")
+        btn_row.setContentsMargins(4, 4, 4, 4)
+        self.lbl_status = QLabel("📍 Đang nhắm: Số thửa (43)")
+        self.lbl_status.setStyleSheet("color: #1565c0; font-weight: bold; font-size: 12px;")
         
-        self.btn_save = QPushButton("💾 Lưu & Tiếp (Ctrl+Enter)")
+        self.btn_save = QPushButton("💾 LƯU & HỒ SƠ TIẾP THEO (Ctrl+Enter)")
         self.btn_save.setStyleSheet("""
             QPushButton {
                 background-color: #2e7d32;
                 color: white;
                 font-weight: bold;
-                font-size: 12px;
-                padding: 5px 14px;
-                border-radius: 3px;
+                font-size: 13px;
+                padding: 8px 20px;
+                border-radius: 4px;
             }
             QPushButton:hover {
                 background-color: #1b5e20;
@@ -215,13 +357,61 @@ class AttributeFormWidget(QWidget):
         btn_row.addWidget(self.lbl_status)
         btn_row.addStretch()
         btn_row.addWidget(self.btn_save)
+        root_layout.addLayout(btn_row)
 
-        layout.addLayout(btn_row)
+        # Tab Order: 43 -> 44 -> 93 -> 110 -> Save
+        QWidget.setTabOrder(self.txt_thua_so, self.txt_thua_to)
+        QWidget.setTabOrder(self.txt_thua_to, self.cmb_thua_xa)
+        QWidget.setTabOrder(self.cmb_thua_xa, self.txt_ghi_chu_t2)
+        QWidget.setTabOrder(self.txt_ghi_chu_t2, self.btn_save)
 
+        self.active_input_widget = self.txt_thua_so
         self._track_focus()
 
+    def _build_tab_list(self):
+        self.tab_widget.blockSignals(True)
+        self.tab_widget.clear()
+        if self._show_full_tabs:
+            self.tab_widget.addTab(self.tab_gcn, "1. GCN & Ký Cấp (1-4, 99-109)")
+            self.tab_widget.addTab(self.tab_chu, "2. Chủ Sử Dụng (5-25)")
+            self.tab_widget.addTab(self.tab_vo, "3. Vợ / Chồng (26-42)")
+            self.tab_widget.addTab(self.tab_thua, "4. Thửa Đất & MĐSD (45-98)")
+            self.tab_widget.addTab(self.tab_nvtc, "5. NVTC & Hạn Chế (111-133)")
+            self.tab_widget.addTab(self.tab_taisan, "6. Tài Sản & Lưu Kho (134-186)")
+            self.btn_toggle_tabs.setText("⚡ Thu gọn (Chỉ hiện Tùy chọn 111-186)")
+        else:
+            self.tab_widget.addTab(self.tab_nvtc, "1. ⚠️ Hạn Chế & NVTC (111-133)")
+            self.tab_widget.addTab(self.tab_taisan, "2. 🏡 Tài Sản & Lưu Kho (134-186)")
+            self.tab_widget.addTab(self.tab_gcn, "3. GCN & Ký Cấp (1-4, 99-109)")
+            self.tab_widget.addTab(self.tab_chu, "4. Chủ Sử Dụng (5-25)")
+            self.tab_widget.addTab(self.tab_vo, "5. Vợ / Chồng (26-42)")
+            self.tab_widget.addTab(self.tab_thua, "6. Thửa Đất & MĐSD (45-98)")
+            self.btn_toggle_tabs.setText("📋 Hiện đầy đủ 6 Tab chuẩn")
+        self.tab_widget.blockSignals(False)
+
+    def _toggle_view_mode(self):
+        self._show_full_tabs = not self._show_full_tabs
+        self._build_tab_list()
+
+    def _setup_form_layout(self, form: QFormLayout):
+        form.setContentsMargins(4, 4, 4, 4)
+        form.setVerticalSpacing(3)
+        form.setHorizontalSpacing(6)
+        form.setLabelAlignment(Qt.AlignmentFlag.AlignRight)
+        form.setFieldGrowthPolicy(QFormLayout.FieldGrowthPolicy.ExpandingFieldsGrow)
+        form.setRowWrapPolicy(QFormLayout.RowWrapPolicy.DontWrapRows)
+
+    def _create_scroll_area(self, widget: QWidget) -> QScrollArea:
+        scroll = VerticalOnlyScrollArea()
+        scroll.setWidget(widget)
+        return scroll
+
+    def _register_input(self, col_idx: int, widget: QWidget):
+        self.field_inputs[col_idx] = widget
+        widget.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        return widget
+
     def _on_tab_switched(self, index: int):
-        """Ensures every tab scroll area resets to top (0) when opened."""
         current_widget = self.tab_widget.currentWidget()
         if isinstance(current_widget, QScrollArea):
             current_widget.verticalScrollBar().setValue(0)
@@ -232,7 +422,6 @@ class AttributeFormWidget(QWidget):
             self._highlight_active_field(self.txt_thua_so, 43)
 
     def _track_focus(self):
-        """Connects focus events of all input widgets to remember active_input_widget."""
         for c, widget in self.field_inputs.items():
             if isinstance(widget, (QLineEdit, QPlainTextEdit, QComboBox)):
                 widget.installEventFilter(self)
@@ -255,69 +444,17 @@ class AttributeFormWidget(QWidget):
     def _highlight_active_field(self, target_widget, col_idx: int):
         field_names = {
             2: "Số Serial", 3: "Mã HS Gốc", 4: "Mã vạch",
-            6: "ĐTSD", 7: "HGD", 8: "Người đại diện", 9: "Họ tên Chủ", 10: "Giới tính Chủ", 11: "Ngày tháng năm sinh Chủ", 12: "Năm sinh Chủ", 13: "Loại GT", 14: "Số GT/CCCD Chủ", 19: "Tổ/Khu Chủ", 20: "Mã Xã Chủ", 21: "Xã/Huyện/Tỉnh Chủ", 22: "Địa chỉ đầy đủ Chủ",
-            26: "Họ tên Vợ/Chồng", 27: "Giới tính Vợ/Chồng", 28: "Ngày tháng năm sinh Vợ/Chồng", 29: "Năm sinh Vợ/Chồng", 30: "Loại GT Vợ/Chồng", 31: "CCCD Vợ/Chồng", 36: "Tổ/Khu Vợ/Chồng", 37: "Mã Xã Vợ/Chồng", 38: "Xã/Huyện/Tỉnh Vợ/Chồng", 39: "Địa chỉ đầy đủ Vợ/Chồng", 41: "Dân tộc Vợ/Chồng", 42: "Quốc tịch Vợ/Chồng",
-            43: "Số thửa", 44: "Số tờ", 46: "Loại bản đồ", 47: "Đơn vị đo", 48: "Phương pháp đo", 49: "Mức độ chính xác", 50: "Ngày hoàn thành",
-            52: "Diện tích bản đồ", 53: "Diện tích pháp lý",
-            54: "MĐSD 1", 56: "Diện tích 1", 60: "Mã nguồn gốc 1", 61: "Nguồn gốc chi tiết 1",
-            62: "MĐSD 2", 64: "Diện tích 2", 68: "Mã nguồn gốc 2", 69: "Nguồn gốc chi tiết 2",
-            70: "MĐSD 3", 72: "Diện tích 3", 76: "Mã nguồn gốc 3", 77: "Nguồn gốc chi tiết 3",
-            90: "Tổ/Khu Thửa đất", 91: "Mã Xã Thửa đất", 92: "Xã/Huyện/Tỉnh Thửa đất", 94: "Địa chỉ thửa đất",
-            99: "Loại GCN", 100: "Số vào sổ", 102: "Ngày ký GCN", 103: "Người ký", 104: "Ủy quyền ký", 105: "Ký thay", 106: "Ngày cấp", 110: "Ghi chú T2",
-            118: "Loại NVTC", 119: "Số tiền NVTC", 183: "Thư mục lưu HSQ"
+            9: "Họ tên Chủ", 14: "CCCD Chủ",
+            43: "Số thửa", 44: "Số tờ", 93: "Xã, huyện, tỉnh", 110: "Ghi chú T2",
+            111: "Loại hạn chế", 112: "DT hạn chế", 113: "Nội dung hạn chế", 114: "Số VB hạn chế",
+            118: "Loại NVTC", 119: "Tổng tiền NVTC", 121: "Tiền nợ NVTC",
+            134: "DTXD Nhà ở", 135: "DTS Nhà ở", 142: "Tên CTXD", 155: "Tên CT ngầm",
+            163: "Tên rừng", 166: "Tên cây lâu năm", 170: "Số thửa cũ", 179: "Kho lưu", 183: "Thư mục HSQ"
         }
         name = field_names.get(col_idx, f"Cột {col_idx}")
         self.lbl_status.setText(f"📍 Đang nhắm ô: [{name}] (OCR/Scan sẽ dán vào đây)")
 
-    def navigate_to_pdf_type(self, pdf_filename: str):
-        """Automatically switches to the corresponding form tab and focuses the primary field based on PDF type."""
-        if not pdf_filename:
-            return
-
-        fn = pdf_filename.lower()
-        if "vo" in fn or "chong" in fn or "vc" in fn or "spouse" in fn:
-            self.tab_widget.setCurrentIndex(2)  # Tab 3: Vợ / Chồng
-            if not self.chk_has_spouse.isChecked():
-                self.chk_has_spouse.setChecked(True)
-            self.txt_vo_name.setFocus()
-            self.active_input_widget = self.txt_vo_name
-            self._highlight_active_field(self.txt_vo_name, 26)
-        elif "gtk" in fn or "bando" in fn or "trichluc" in fn or "td" in fn or "tl" in fn or "thua" in fn or "mdsd" in fn:
-            self.tab_widget.setCurrentIndex(3)  # Tab 4: Thửa đất & MĐSD
-            self.txt_thua_so.setFocus()
-            self.active_input_widget = self.txt_thua_so
-            self._highlight_active_field(self.txt_thua_so, 43)
-        elif "gt" in fn or "cccd" in fn or "cmnd" in fn or "hochieu" in fn or "hk" in fn or "nhanthan" in fn:
-            self.tab_widget.setCurrentIndex(1)  # Tab 2: Chủ sử dụng
-            self.txt_chu_name.setFocus()
-            self.active_input_widget = self.txt_chu_name
-            self._highlight_active_field(self.txt_chu_name, 9)
-        elif "nvtc" in fn or "thue" in fn or "lptb" in fn or "tien" in fn:
-            self.tab_widget.setCurrentIndex(4)  # Tab 5: NVTC & Hạn chế
-            self.cmb_nvtc_loai.setFocus()
-            self.active_input_widget = self.cmb_nvtc_loai
-            self._highlight_active_field(self.cmb_nvtc_loai, 118)
-        elif "ts" in fn or "nha" in fn or "kho" in fn or "tsglvd" in fn or "congtrinh" in fn:
-            self.tab_widget.setCurrentIndex(5)  # Tab 6: Tài sản & Lưu kho
-            self.txt_nha_dt_xd.setFocus()
-            self.active_input_widget = self.txt_nha_dt_xd
-            self._highlight_active_field(self.txt_nha_dt_xd, 134)
-        elif "gcn" in fn or "bia" in fn or "giaychungnhan" in fn:
-            self.tab_widget.setCurrentIndex(0)  # Tab 1: GCN & Ký Cấp
-            self.txt_barcode.setFocus()
-            self.active_input_widget = self.txt_barcode
-            self._highlight_active_field(self.txt_barcode, 4)
-        else:
-            self.tab_widget.setCurrentIndex(0)
-
-        # Reset vertical scrollbar to 0 so the tab always opens at the very top
-        current_widget = self.tab_widget.currentWidget()
-        if isinstance(current_widget, QScrollArea):
-            current_widget.verticalScrollBar().setValue(0)
-            current_widget.horizontalScrollBar().setValue(0)
-
     def set_ocr_text_to_active_field(self, text: str):
-        """Pastes OCR text into active focused input widget and updates clipboard."""
         if not text:
             return
         clean_text = text.strip()
@@ -326,10 +463,7 @@ class AttributeFormWidget(QWidget):
         if clipboard:
             clipboard.setText(clean_text)
 
-        target = self.active_input_widget
-        if not target:
-            target = self.txt_barcode
-
+        target = self.active_input_widget or self.txt_thua_so
         if target:
             if isinstance(target, QLineEdit):
                 target.setText(clean_text)
@@ -338,35 +472,67 @@ class AttributeFormWidget(QWidget):
             elif isinstance(target, QComboBox):
                 target.setEditText(clean_text)
 
-    def _register_input(self, col_idx: int, widget: QWidget):
-        self.field_inputs[col_idx] = widget
-        widget.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
-        return widget
+    def navigate_to_pdf_type(self, pdf_filename: str):
+        if not pdf_filename:
+            return
+        fn = pdf_filename.lower()
+        if "vo" in fn or "chong" in fn or "vc" in fn or "spouse" in fn:
+            if self._show_full_tabs:
+                self.tab_widget.setCurrentIndex(2)
+            if not self.chk_has_spouse.isChecked():
+                self.chk_has_spouse.setChecked(True)
+            self.txt_vo_name.setFocus()
+            self.active_input_widget = self.txt_vo_name
+            self._highlight_active_field(self.txt_vo_name, 26)
+        elif "gtk" in fn or "bando" in fn or "trichdo" in fn or "td" in fn:
+            if self._show_full_tabs:
+                self.tab_widget.setCurrentIndex(3)
+            self.txt_thua_so.setFocus()
+            self.active_input_widget = self.txt_thua_so
+            self._highlight_active_field(self.txt_thua_so, 43)
+        elif "gt" in fn or "cccd" in fn or "cmnd" in fn:
+            if self._show_full_tabs:
+                self.tab_widget.setCurrentIndex(1)
+            self.txt_chu_name.setFocus()
+            self.active_input_widget = self.txt_chu_name
+            self._highlight_active_field(self.txt_chu_name, 9)
+        elif "nvtc" in fn or "thue" in fn or "tien" in fn:
+            if self._show_full_tabs:
+                self.tab_widget.setCurrentIndex(4)
+            if not self.chk_has_nvtc.isChecked():
+                self.chk_has_nvtc.setChecked(True)
+            self.cmb_nvtc_loai.setFocus()
+            self.active_input_widget = self.cmb_nvtc_loai
+            self._highlight_active_field(self.cmb_nvtc_loai, 118)
+        elif "ts" in fn or "nha" in fn or "kho" in fn or "tsglvd" in fn or "congtrinh" in fn:
+            if self._show_full_tabs:
+                self.tab_widget.setCurrentIndex(5)
+            self.txt_nha_dt_xd.setFocus()
+            self.active_input_widget = self.txt_nha_dt_xd
+            self._highlight_active_field(self.txt_nha_dt_xd, 134)
+        elif "gcn" in fn or "bia" in fn or "giaychungnhan" in fn:
+            if self._show_full_tabs:
+                self.tab_widget.setCurrentIndex(0)
+            self.txt_barcode.setFocus()
+            self.active_input_widget = self.txt_barcode
+            self._highlight_active_field(self.txt_barcode, 4)
+        else:
+            self.txt_thua_so.setFocus()
+            self.active_input_widget = self.txt_thua_so
+            self._highlight_active_field(self.txt_thua_so, 43)
 
-    def _setup_form_layout(self, form: QFormLayout):
-        form.setContentsMargins(4, 4, 4, 4)
-        form.setVerticalSpacing(3)
-        form.setHorizontalSpacing(6)
-        form.setLabelAlignment(Qt.AlignmentFlag.AlignRight)
-        form.setFieldGrowthPolicy(QFormLayout.FieldGrowthPolicy.ExpandingFieldsGrow)
-        form.setRowWrapPolicy(QFormLayout.RowWrapPolicy.DontWrapRows)
-
-    def _create_scroll_area(self, widget: QWidget) -> QScrollArea:
-        scroll = VerticalOnlyScrollArea()
-        scroll.setWidget(widget)
-        return scroll
+        current_widget = self.tab_widget.currentWidget()
+        if isinstance(current_widget, QScrollArea):
+            current_widget.verticalScrollBar().setValue(0)
+            current_widget.horizontalScrollBar().setValue(0)
 
     # -------------------------------------------------------------
-    # TAB 1: GCN & KÝ CẤP (Cols 1-4, 99-110)
+    # TAB 1: GCN & KÝ CẤP (Cols 1-4, 99-109)
     # -------------------------------------------------------------
     def _create_tab_gcn(self) -> QWidget:
         container = QWidget()
         form = QFormLayout(container)
         self._setup_form_layout(form)
-
-        self.txt_serial = QLineEdit()
-        self.txt_serial.textChanged.connect(self._auto_sync_ma_don)
-        self._register_input(2, self.txt_serial)
 
         self.txt_ma_hs = QLineEdit()
         self._register_input(3, self.txt_ma_hs)
@@ -375,49 +541,40 @@ class AttributeFormWidget(QWidget):
         self.txt_barcode.setPlaceholderText("Ví dụ: 0667320081887")
         self.txt_barcode.textChanged.connect(self._auto_sync_ma_hs_goc)
         self._register_input(4, self.txt_barcode)
-        self.active_input_widget = self.txt_barcode
 
-        # Ký cấp GCN
         self.cmb_loai_gcn = SearchableComboBox()
-        default_gcn = "Giấy chứng nhận QSDĐ & QSHNƠ và TSKGLVĐ theo NĐ 88/NĐ-CP"
-        all_gcns = list(self.master_data.gcn_types)
-        if default_gcn not in all_gcns:
-            all_gcns.insert(0, default_gcn)
-        for g in all_gcns:
+        self.cmb_loai_gcn.addItem("[Không chọn]", "")
+        for g in self.master_data.gcn_types:
             self.cmb_loai_gcn.addItem(g, g)
-        self.cmb_loai_gcn.setCurrentText(default_gcn)
         self._register_input(99, self.cmb_loai_gcn)
 
         self.txt_so_vao_so = QLineEdit()
-        self.txt_so_vao_so.setPlaceholderText("Ví dụ: CH89147")
         self._register_input(100, self.txt_so_vao_so)
 
         self.txt_ngay_vao_so = QLineEdit()
-        self.txt_ngay_vao_so.setPlaceholderText("Ví dụ: 31/07/2024")
         self.txt_ngay_vao_so.textChanged.connect(self._auto_sync_ngay_vao_so)
         self._register_input(101, self.txt_ngay_vao_so)
 
         self.txt_ngay_ky = QLineEdit()
-        self.txt_ngay_ky.setPlaceholderText("Ví dụ: 31/07/2024")
         self.txt_ngay_ky.textChanged.connect(self._auto_sync_ngay_cap)
         self._register_input(102, self.txt_ngay_ky)
 
         self.txt_nguoi_ky = QLineEdit()
-        self.txt_nguoi_ky.setPlaceholderText("Ví dụ: Vũ Ngọc Lâm")
         self._register_input(103, self.txt_nguoi_ky)
 
         self.cmb_uy_quyen_ky = SearchableComboBox()
+        self.cmb_uy_quyen_ky.addItem("[Không chọn]", "")
         self.cmb_uy_quyen_ky.addItem("0 - Không ủy quyền", "0")
         self.cmb_uy_quyen_ky.addItem("1 - Có ủy quyền", "1")
         self._register_input(104, self.cmb_uy_quyen_ky)
 
         self.cmb_ky_thay = SearchableComboBox()
-        self.cmb_ky_thay.addItem("1 - Ký thay (KT.)", "1")
+        self.cmb_ky_thay.addItem("[Không chọn]", "")
         self.cmb_ky_thay.addItem("0 - Ký trực tiếp", "0")
+        self.cmb_ky_thay.addItem("1 - Ký thay (KT.)", "1")
         self._register_input(105, self.cmb_ky_thay)
 
         self.txt_ngay_cap = QLineEdit()
-        self.txt_ngay_cap.setPlaceholderText("Ví dụ: 31/07/2024")
         self._register_input(106, self.txt_ngay_cap)
 
         self.txt_ten_dot_cap = QLineEdit()
@@ -429,11 +586,6 @@ class AttributeFormWidget(QWidget):
         self.txt_ghi_chu_t1 = QLineEdit()
         self._register_input(109, self.txt_ghi_chu_t1)
 
-        self.txt_ghi_chu_t2 = QPlainTextEdit()
-        self.txt_ghi_chu_t2.setMaximumHeight(50)
-        self._register_input(110, self.txt_ghi_chu_t2)
-
-        form.addRow("Số Serial (2):", self.txt_serial)
         form.addRow("Mã HS Gốc (3):", self.txt_ma_hs)
         form.addRow("Mã vạch (4):", self.txt_barcode)
         form.addRow("Loại GCN (99):", self.cmb_loai_gcn)
@@ -447,9 +599,903 @@ class AttributeFormWidget(QWidget):
         form.addRow("Đợt cấp (107):", self.txt_ten_dot_cap)
         form.addRow("Căn cứ PL (108):", self.txt_can_cu_phap_ly)
         form.addRow("Ghi chú T1 (109):", self.txt_ghi_chu_t1)
-        form.addRow("Ghi chú T2 (110):", self.txt_ghi_chu_t2)
 
         return self._create_scroll_area(container)
+
+    # -------------------------------------------------------------
+    # TAB 2: CHỦ SỬ DỤNG (Cols 5-25)
+    # -------------------------------------------------------------
+    def _create_tab_chu(self) -> QWidget:
+        container = QWidget()
+        form = QFormLayout(container)
+        self._setup_form_layout(form)
+
+        self.txt_chu_ma = QLineEdit()
+        self._register_input(5, self.txt_chu_ma)
+
+        self.cmb_chu_dtsd = SearchableComboBox()
+        self.cmb_chu_dtsd.addItem("[Không chọn]", "")
+        if self.master_data.dtsd_list:
+            for code, name in self.master_data.dtsd_list:
+                self.cmb_chu_dtsd.addItem(f"{code} - {name}", code)
+        else:
+            self.cmb_chu_dtsd.addItem("CNV - Cá nhân trong nước", "CNV")
+            self.cmb_chu_dtsd.addItem("GDC - Hộ gia đình, cá nhân", "GDC")
+            self.cmb_chu_dtsd.addItem("TCC - Tổ chức trong nước", "TCC")
+        self._register_input(6, self.cmb_chu_dtsd)
+
+        self.cmb_chu_hgd = SearchableComboBox()
+        self.cmb_chu_hgd.addItem("[Không chọn]", "")
+        self.cmb_chu_hgd.addItem("0 - Không phải HGD", "0")
+        self.cmb_chu_hgd.addItem("1 - Là Hộ gia đình", "1")
+        self._register_input(7, self.cmb_chu_hgd)
+
+        self.cmb_chu_daidien = SearchableComboBox()
+        self.cmb_chu_daidien.addItem("[Không chọn]", "")
+        self.cmb_chu_daidien.addItem("0 - Không phải đại diện", "0")
+        self.cmb_chu_daidien.addItem("1 - Là người đại diện", "1")
+        self._register_input(8, self.cmb_chu_daidien)
+
+        self.txt_chu_name = QLineEdit()
+        self.txt_chu_name.setPlaceholderText("Ví dụ: Nguyễn Anh Tuấn")
+        self._register_input(9, self.txt_chu_name)
+
+        self.cmb_chu_gioitinh = SearchableComboBox()
+        self.cmb_chu_gioitinh.addItem("[Trống]", "")
+        self.cmb_chu_gioitinh.addItem("Nam", "1")
+        self.cmb_chu_gioitinh.addItem("Nữ", "0")
+        self._register_input(10, self.cmb_chu_gioitinh)
+
+        self.txt_chu_ngay_sinh = QLineEdit()
+        self.txt_chu_ngay_sinh.setPlaceholderText("Ví dụ: 15/08/1980")
+        self.txt_chu_ngay_sinh.textChanged.connect(self._auto_sync_chu_nam_sinh)
+        self._register_input(11, self.txt_chu_ngay_sinh)
+
+        self.txt_chu_nam_sinh = QLineEdit()
+        self.txt_chu_nam_sinh.setPlaceholderText("Ví dụ: 1980")
+        self._register_input(12, self.txt_chu_nam_sinh)
+
+        self.cmb_chu_id_type = SearchableComboBox()
+        self.cmb_chu_id_type.addItem("[Không chọn]", "")
+        for code, label in self.master_data.id_types:
+            self.cmb_chu_id_type.addItem(label, code)
+        self._register_input(13, self.cmb_chu_id_type)
+
+        self.txt_chu_id_num = QLineEdit()
+        self.txt_chu_id_num.setPlaceholderText("Số CCCD / CMND")
+        self._register_input(14, self.txt_chu_id_num)
+
+        self.txt_chu_id_date = QLineEdit()
+        self._register_input(15, self.txt_chu_id_date)
+
+        self.txt_chu_id_place = SearchableComboBox()
+        self.txt_chu_id_place.addItem("[Không chọn]", "")
+        for opt in DEFAULT_NOI_CAP_LIST:
+            self.txt_chu_id_place.addItem(opt, opt)
+        self._register_input(16, self.txt_chu_id_place)
+
+        self.txt_chu_address = QLineEdit()
+        self._register_input(17, self.txt_chu_address)
+
+        self.txt_chu_sonha = QLineEdit()
+        self._register_input(18, self.txt_chu_sonha)
+
+        self.txt_chu_to = QLineEdit()
+        self.txt_chu_to.setPlaceholderText("Ví dụ: Khu 5")
+        self.txt_chu_to.textChanged.connect(self._update_chu_full_address)
+        self._register_input(19, self.txt_chu_to)
+
+        self.cmb_chu_xa = SearchableComboBox()
+        self._populate_communes_for_tab(self.cmb_chu_xa)
+        self.cmb_chu_xa.currentIndexChanged.connect(self._on_chu_commune_changed)
+        self._register_input(20, self.cmb_chu_xa)
+
+        self.txt_chu_xa_huyen_tinh = QLineEdit()
+        self.txt_chu_xa_huyen_tinh.textChanged.connect(self._update_chu_full_address)
+        self._register_input(21, self.txt_chu_xa_huyen_tinh)
+
+        self.txt_chu_full_addr = QLineEdit()
+        self._register_input(22, self.txt_chu_full_addr)
+
+        self.txt_chu_phone = QLineEdit()
+        self._register_input(23, self.txt_chu_phone)
+
+        self.cmb_chu_dantoc = SearchableComboBox()
+        self.cmb_chu_dantoc.addItem("[Không chọn]", "")
+        for eth in self.master_data.ethnicities:
+            self.cmb_chu_dantoc.addItem(eth, eth)
+        self._register_input(24, self.cmb_chu_dantoc)
+
+        self.cmb_chu_quoctich = SearchableComboBox()
+        self.cmb_chu_quoctich.addItem("[Không chọn]", "")
+        for nat in self.master_data.nationalities:
+            self.cmb_chu_quoctich.addItem(nat, nat)
+        self._register_input(25, self.cmb_chu_quoctich)
+
+        form.addRow("Mã Chủ SD (5):", self.txt_chu_ma)
+        form.addRow("ĐTSD (6):", self.cmb_chu_dtsd)
+        form.addRow("HGD (7):", self.cmb_chu_hgd)
+        form.addRow("Đại diện (8):", self.cmb_chu_daidien)
+        form.addRow("Họ tên (9):", self.txt_chu_name)
+        form.addRow("Giới tính (10):", self.cmb_chu_gioitinh)
+        form.addRow("Ngày sinh (11):", self.txt_chu_ngay_sinh)
+        form.addRow("Năm sinh (12):", self.txt_chu_nam_sinh)
+        form.addRow("Loại GT (13):", self.cmb_chu_id_type)
+        form.addRow("Số GT/CCCD (14):", self.txt_chu_id_num)
+        form.addRow("Ngày cấp (15):", self.txt_chu_id_date)
+        form.addRow("Nơi cấp (16):", self.txt_chu_id_place)
+        form.addRow("Địa chỉ chi tiết (17):", self.txt_chu_address)
+        form.addRow("Đường phố (18):", self.txt_chu_sonha)
+        form.addRow("Tổ/Khu (19):", self.txt_chu_to)
+        form.addRow("Mã Xã (20):", self.cmb_chu_xa)
+        form.addRow("Xã/Huyện/Tỉnh (21):", self.txt_chu_xa_huyen_tinh)
+        form.addRow("Địa chỉ đầy đủ (22):", self.txt_chu_full_addr)
+        form.addRow("Số ĐT (23):", self.txt_chu_phone)
+        form.addRow("Dân tộc (24):", self.cmb_chu_dantoc)
+        form.addRow("Quốc tịch (25):", self.cmb_chu_quoctich)
+
+        return self._create_scroll_area(container)
+
+    # -------------------------------------------------------------
+    # TAB 3: VỢ / CHỒNG (Cols 26-42)
+    # -------------------------------------------------------------
+    def _create_tab_vo_chong(self) -> QWidget:
+        container = QWidget()
+        vbox = QVBoxLayout(container)
+        vbox.setContentsMargins(4, 4, 4, 4)
+
+        self.chk_has_spouse = QCheckBox("☑ Có thông tin Vợ / Chồng (Cols 26-42)")
+        vbox.addWidget(self.chk_has_spouse)
+
+        grp_vo = QGroupBox()
+        fv = QFormLayout(grp_vo)
+        self._setup_form_layout(fv)
+
+        self.txt_vo_name = QLineEdit()
+        self._register_input(26, self.txt_vo_name)
+        
+        self.cmb_vo_gioitinh = SearchableComboBox()
+        self.cmb_vo_gioitinh.addItem("[Trống]", "")
+        self.cmb_vo_gioitinh.addItem("Nữ", "0")
+        self.cmb_vo_gioitinh.addItem("Nam", "1")
+        self._register_input(27, self.cmb_vo_gioitinh)
+        
+        self.txt_vo_ngay_sinh = QLineEdit()
+        self.txt_vo_ngay_sinh.textChanged.connect(self._auto_sync_vo_nam_sinh)
+        self._register_input(28, self.txt_vo_ngay_sinh)
+        
+        self.txt_vo_nam_sinh = QLineEdit()
+        self._register_input(29, self.txt_vo_nam_sinh)
+        
+        self.cmb_vo_id_type = SearchableComboBox()
+        self.cmb_vo_id_type.addItem("[Không chọn]", "")
+        for code, label in self.master_data.id_types:
+            self.cmb_vo_id_type.addItem(label, code)
+        self._register_input(30, self.cmb_vo_id_type)
+        
+        self.txt_vo_id_num = QLineEdit()
+        self._register_input(31, self.txt_vo_id_num)
+        
+        self.txt_vo_id_date = QLineEdit()
+        self._register_input(32, self.txt_vo_id_date)
+        
+        self.txt_vo_id_place = SearchableComboBox()
+        self.txt_vo_id_place.addItem("[Không chọn]", "")
+        for opt in DEFAULT_NOI_CAP_LIST:
+            self.txt_vo_id_place.addItem(opt, opt)
+        self._register_input(33, self.txt_vo_id_place)
+        
+        self.txt_vo_address = QLineEdit()
+        self._register_input(34, self.txt_vo_address)
+        
+        self.txt_vo_sonha = QLineEdit()
+        self._register_input(35, self.txt_vo_sonha)
+        
+        self.txt_vo_to = QLineEdit()
+        self.txt_vo_to.textChanged.connect(self._update_vo_full_address)
+        self._register_input(36, self.txt_vo_to)
+        
+        self.cmb_vo_xa = SearchableComboBox()
+        self._populate_communes_for_tab(self.cmb_vo_xa)
+        self.cmb_vo_xa.currentIndexChanged.connect(self._on_vo_commune_changed)
+        self._register_input(37, self.cmb_vo_xa)
+        
+        self.txt_vo_xa_huyen_tinh = QLineEdit()
+        self.txt_vo_xa_huyen_tinh.textChanged.connect(self._update_vo_full_address)
+        self._register_input(38, self.txt_vo_xa_huyen_tinh)
+        
+        self.txt_vo_full_addr = QLineEdit()
+        self._register_input(39, self.txt_vo_full_addr)
+        
+        self.txt_vo_phone = QLineEdit()
+        self._register_input(40, self.txt_vo_phone)
+        
+        self.cmb_vo_dantoc = SearchableComboBox()
+        self.cmb_vo_dantoc.addItem("[Không chọn]", "")
+        for eth in self.master_data.ethnicities:
+            self.cmb_vo_dantoc.addItem(eth, eth)
+        self._register_input(41, self.cmb_vo_dantoc)
+        
+        self.cmb_vo_quoctich = SearchableComboBox()
+        self.cmb_vo_quoctich.addItem("[Không chọn]", "")
+        for nat in self.master_data.nationalities:
+            self.cmb_vo_quoctich.addItem(nat, nat)
+        self._register_input(42, self.cmb_vo_quoctich)
+
+        fv.addRow("Họ tên Vợ/Chồng (26):", self.txt_vo_name)
+        fv.addRow("Giới tính (27):", self.cmb_vo_gioitinh)
+        fv.addRow("Ngày sinh (28):", self.txt_vo_ngay_sinh)
+        fv.addRow("Năm sinh (29):", self.txt_vo_nam_sinh)
+        fv.addRow("Loại GT (30):", self.cmb_vo_id_type)
+        fv.addRow("Số GT/CCCD (31):", self.txt_vo_id_num)
+        fv.addRow("Ngày cấp (32):", self.txt_vo_id_date)
+        fv.addRow("Nơi cấp (33):", self.txt_vo_id_place)
+        fv.addRow("Địa chỉ (34):", self.txt_vo_address)
+        fv.addRow("Đường phố (35):", self.txt_vo_sonha)
+        fv.addRow("Tổ/Khu (36):", self.txt_vo_to)
+        fv.addRow("Mã Xã (37):", self.cmb_vo_xa)
+        fv.addRow("Xã/Huyện/Tỉnh (38):", self.txt_vo_xa_huyen_tinh)
+        fv.addRow("Địa chỉ đầy đủ (39):", self.txt_vo_full_addr)
+        fv.addRow("Số ĐT (40):", self.txt_vo_phone)
+        fv.addRow("Dân tộc (41):", self.cmb_vo_dantoc)
+        fv.addRow("Quốc tịch (42):", self.cmb_vo_quoctich)
+
+        vbox.addWidget(grp_vo)
+        grp_vo.setEnabled(False)
+        self.chk_has_spouse.toggled.connect(grp_vo.setEnabled)
+
+        return self._create_scroll_area(container)
+
+    # -------------------------------------------------------------
+    # TAB 4: THỬA ĐẤT & MĐSD (Cols 45-98)
+    # -------------------------------------------------------------
+    def _create_tab_thua_dat(self) -> QWidget:
+        container = QWidget()
+        form = QFormLayout(container)
+        self._setup_form_layout(form)
+
+        self.txt_ty_le = QLineEdit("")
+        self._register_input(45, self.txt_ty_le)
+        self.txt_tyle = self.txt_ty_le  # Alias
+
+        self.cmb_loai_bando = SearchableComboBox()
+        self.cmb_loai_bando.addItem("[Không chọn]", "")
+        for code, name in self.master_data.map_types:
+            self.cmb_loai_bando.addItem(name, code)
+        self._register_input(46, self.cmb_loai_bando)
+
+        self.cmb_don_vi_do = SearchableComboBox()
+        self.cmb_don_vi_do.addItem("[Không chọn]", "")
+        for u in ["Xí nghiệp tài nguyên và môi trường 3", "Trung tâm kỹ thuật CNTT", "Công ty CP Đo đạc Bản đồ"]:
+            self.cmb_don_vi_do.addItem(u, u)
+        self._register_input(47, self.cmb_don_vi_do)
+        self.txt_don_vi_do = self.cmb_don_vi_do  # Alias
+
+        self.txt_pp_do = QLineEdit("")
+        self._register_input(48, self.txt_pp_do)
+        self.txt_phuong_phap_do = self.txt_pp_do  # Alias
+
+        self.txt_do_chinh_xac = QLineEdit("")
+        self._register_input(49, self.txt_do_chinh_xac)
+        self.txt_nguoi_kiem_tra = self.txt_do_chinh_xac  # Alias
+
+        self.txt_ngay_hoan_thanh = QLineEdit("")
+        self._register_input(50, self.txt_ngay_hoan_thanh)
+        
+        self.cmb_trang_thai = SearchableComboBox()
+        self.cmb_trang_thai.addItem("[Không chọn]", "")
+        if self.master_data.land_status_list:
+            for code, name in self.master_data.land_status_list:
+                self.cmb_trang_thai.addItem(f"{code} - {name}", code)
+        else:
+            self.cmb_trang_thai.addItem("A - Đã cấp GCN, không có tài sản", "A")
+            self.cmb_trang_thai.addItem("B - Đã cấp GCN, có tài sản", "B")
+        self._register_input(51, self.cmb_trang_thai)
+        self.cmb_phan_loai_thua = self.cmb_trang_thai  # Alias
+
+        self.txt_dt_bando = QLineEdit("")
+        self._register_input(52, self.txt_dt_bando)
+        self.txt_dt_phaply = QLineEdit("")
+        self.txt_dt_phaply.textChanged.connect(self._auto_sync_dt_phaply)
+        self._register_input(53, self.txt_dt_phaply)
+
+        # MĐSD 1 (54-61)
+        self.cmb_mdsd1_loai = SearchableComboBox()
+        self._populate_land_types(self.cmb_mdsd1_loai)
+        self._register_input(54, self.cmb_mdsd1_loai)
+        
+        self.txt_mdsd1_dt = QLineEdit("")
+        self._register_input(56, self.txt_mdsd1_dt)
+        
+        self.cmb_mdsd1_ht = SearchableComboBox()
+        self.cmb_mdsd1_ht.addItem("[Không chọn]", "")
+        self.cmb_mdsd1_ht.addItem("0 - Sử dụng riêng", "0")
+        self.cmb_mdsd1_ht.addItem("1 - Sử dụng chung", "1")
+        self._register_input(57, self.cmb_mdsd1_ht)
+        
+        self.txt_mdsd1_thoihan = QLineEdit("")
+        self._register_input(58, self.txt_mdsd1_thoihan)
+        self.txt_mdsd1_thoi_han = self.txt_mdsd1_thoihan  # Alias
+        
+        self.cmb_mdsd1_nguongoc = SearchableComboBox()
+        self._populate_land_use_origins(self.cmb_mdsd1_nguongoc)
+        self.cmb_mdsd1_nguongoc.currentIndexChanged.connect(self._on_mdsd1_nguongoc_changed)
+        self._register_input(59, self.cmb_mdsd1_nguongoc)
+        self.cmb_mdsd1_nguon_goc = self.cmb_mdsd1_nguongoc  # Alias
+
+        self.cmb_mdsd1_ma_nguon_goc = SearchableComboBox()
+        self._populate_land_use_origins(self.cmb_mdsd1_ma_nguon_goc)
+        self.cmb_mdsd1_ma_nguon_goc.currentIndexChanged.connect(self._on_mdsd1_nguongoc_changed)
+        self._register_input(60, self.cmb_mdsd1_ma_nguon_goc)
+
+        self.txt_mdsd1_nguongoc_chitiet = QLineEdit("")
+        self._register_input(61, self.txt_mdsd1_nguongoc_chitiet)
+        self.txt_mdsd1_nguon_goc_chi_tiet = self.txt_mdsd1_nguongoc_chitiet  # Alias
+        self.txt_mdsd1_nguon_goc_ct = self.txt_mdsd1_nguongoc_chitiet  # Alias
+
+        # MĐSD 2 (62-69)
+        self.chk_has_mdsd2 = QCheckBox("☑ Có MĐSD 2 (62-69)")
+        self.cmb_mdsd2_loai = SearchableComboBox()
+        self._populate_land_types(self.cmb_mdsd2_loai)
+        self._register_input(62, self.cmb_mdsd2_loai)
+        
+        self.txt_mdsd2_dt = QLineEdit("")
+        self._register_input(64, self.txt_mdsd2_dt)
+        
+        self.cmb_mdsd2_ht = SearchableComboBox()
+        self.cmb_mdsd2_ht.addItem("[Không chọn]", "")
+        self.cmb_mdsd2_ht.addItem("0 - Sử dụng riêng", "0")
+        self.cmb_mdsd2_ht.addItem("1 - Sử dụng chung", "1")
+        self._register_input(65, self.cmb_mdsd2_ht)
+        
+        self.txt_mdsd2_thoihan = QLineEdit("")
+        self._register_input(66, self.txt_mdsd2_thoihan)
+        
+        self.cmb_mdsd2_nguongoc = SearchableComboBox()
+        self._populate_land_use_origins(self.cmb_mdsd2_nguongoc)
+        self.cmb_mdsd2_nguongoc.currentIndexChanged.connect(self._on_mdsd2_nguongoc_changed)
+        self._register_input(67, self.cmb_mdsd2_nguongoc)
+        self.cmb_mdsd2_nguon_goc = self.cmb_mdsd2_nguongoc  # Alias
+
+        self.cmb_mdsd2_ma_nguon_goc = SearchableComboBox()
+        self._populate_land_use_origins(self.cmb_mdsd2_ma_nguon_goc)
+        self.cmb_mdsd2_ma_nguon_goc.currentIndexChanged.connect(self._on_mdsd2_nguongoc_changed)
+        self._register_input(68, self.cmb_mdsd2_ma_nguon_goc)
+
+        self.txt_mdsd2_nguongoc_chitiet = QLineEdit("")
+        self._register_input(69, self.txt_mdsd2_nguongoc_chitiet)
+        self.txt_mdsd2_nguon_goc_chi_tiet = self.txt_mdsd2_nguongoc_chitiet  # Alias
+
+        # MĐSD 3 (70-77)
+        self.chk_has_mdsd3 = QCheckBox("☑ Có MĐSD 3 (70-77)")
+        self.cmb_mdsd3_loai = SearchableComboBox()
+        self._populate_land_types(self.cmb_mdsd3_loai)
+        self._register_input(70, self.cmb_mdsd3_loai)
+        
+        self.txt_mdsd3_dt = QLineEdit("")
+        self._register_input(72, self.txt_mdsd3_dt)
+        
+        self.cmb_mdsd3_ht = SearchableComboBox()
+        self.cmb_mdsd3_ht.addItem("[Không chọn]", "")
+        self.cmb_mdsd3_ht.addItem("0 - Sử dụng riêng", "0")
+        self.cmb_mdsd3_ht.addItem("1 - Sử dụng chung", "1")
+        self._register_input(73, self.cmb_mdsd3_ht)
+        
+        self.txt_mdsd3_thoihan = QLineEdit("")
+        self._register_input(74, self.txt_mdsd3_thoihan)
+        
+        self.cmb_mdsd3_nguongoc = SearchableComboBox()
+        self._populate_land_use_origins(self.cmb_mdsd3_nguongoc)
+        self.cmb_mdsd3_nguongoc.currentIndexChanged.connect(self._on_mdsd3_nguongoc_changed)
+        self._register_input(75, self.cmb_mdsd3_nguongoc)
+        self.cmb_mdsd3_nguon_goc = self.cmb_mdsd3_nguongoc  # Alias
+
+        self.cmb_mdsd3_ma_nguon_goc = SearchableComboBox()
+        self._populate_land_use_origins(self.cmb_mdsd3_ma_nguon_goc)
+        self.cmb_mdsd3_ma_nguon_goc.currentIndexChanged.connect(self._on_mdsd3_nguongoc_changed)
+        self._register_input(76, self.cmb_mdsd3_ma_nguon_goc)
+
+        self.txt_mdsd3_nguongoc_chitiet = QLineEdit("")
+        self._register_input(77, self.txt_mdsd3_nguongoc_chitiet)
+        self.txt_mdsd3_nguon_goc_chi_tiet = self.txt_mdsd3_nguongoc_chitiet  # Alias
+
+        # Thửa đất địa chỉ (89-98)
+        self.txt_thua_sonha = QLineEdit("")
+        self._register_input(89, self.txt_thua_sonha)
+        self.txt_thua_to_dp = QLineEdit("")
+        self._register_input(90, self.txt_thua_to_dp)
+        self.txt_thua_full_addr = QLineEdit("")
+        self._register_input(94, self.txt_thua_full_addr)
+
+        self.txt_thua_ma_don = QLineEdit("")
+        self._register_input(95, self.txt_thua_ma_don)
+
+        self.chk_has_quan_ly = QCheckBox("☑ Có Người quản lý thửa đất (96-98)")
+        self.cmb_ql_dtsd = SearchableComboBox()
+        self.cmb_ql_dtsd.addItem("[Không chọn]", "")
+        self.cmb_ql_dtsd.addItem("0 - Không", "0")
+        self.cmb_ql_dtsd.addItem("1 - Có", "1")
+        self._register_input(96, self.cmb_ql_dtsd)
+
+        self.cmb_hinh_thuc_sd = SearchableComboBox()
+        self.cmb_hinh_thuc_sd.addItem("[Không chọn]", "")
+        self.cmb_hinh_thuc_sd.addItem("0 - Sử dụng riêng", "0")
+        self.cmb_hinh_thuc_sd.addItem("1 - Sử dụng chung", "1")
+        self._register_input(97, self.cmb_hinh_thuc_sd)
+        self.txt_ql_name = self.cmb_hinh_thuc_sd  # Alias
+
+        self.cmb_trang_thai_thua = SearchableComboBox()
+        self.cmb_trang_thai_thua.addItem("[Không chọn]", "")
+        self.cmb_trang_thai_thua.addItem("1 - Đã đăng ký, chưa cấp GCN", "1")
+        self.cmb_trang_thai_thua.addItem("2 - Chưa đăng ký, đủ ĐK cấp GCN", "2")
+        self.cmb_trang_thai_thua.addItem("3 - Đã đăng ký, không đủ ĐK cấp GCN", "3")
+        self.cmb_trang_thai_thua.addItem("4 - Đã đăng ký, đủ điều kiện cấp GCN", "4")
+        self._register_input(98, self.cmb_trang_thai_thua)
+        self.txt_ql_diachi = self.cmb_trang_thai_thua  # Alias
+
+        form.addRow("Tỷ lệ (45):", self.txt_ty_le)
+        form.addRow("Loại bản đồ (46):", self.cmb_loai_bando)
+        form.addRow("Đơn vị đo (47):", self.cmb_don_vi_do)
+        form.addRow("Phương pháp đo (48):", self.txt_pp_do)
+        form.addRow("Độ chính xác (49):", self.txt_do_chinh_xac)
+        form.addRow("Ngày HT đo (50):", self.txt_ngay_hoan_thanh)
+        form.addRow("Trạng thái cấp (51):", self.cmb_trang_thai)
+        form.addRow("DT bản đồ (52):", self.txt_dt_bando)
+        form.addRow("DT pháp lý (53):", self.txt_dt_phaply)
+        form.addRow("--- MĐSD 1 ---", QLabel(""))
+        form.addRow("Loại đất 1 (54):", self.cmb_mdsd1_loai)
+        form.addRow("Diện tích 1 (56):", self.txt_mdsd1_dt)
+        form.addRow("Hình thức 1 (57):", self.cmb_mdsd1_ht)
+        form.addRow("Thời hạn 1 (58):", self.txt_mdsd1_thoihan)
+        form.addRow("Mã nguồn gốc 1 (59):", self.cmb_mdsd1_nguongoc)
+        form.addRow("Mã nguồn gốc khác (60):", self.cmb_mdsd1_ma_nguon_goc)
+        form.addRow("Nguồn gốc chi tiết 1 (61):", self.txt_mdsd1_nguongoc_chitiet)
+        form.addRow(self.chk_has_mdsd2)
+        form.addRow("Loại đất 2 (62):", self.cmb_mdsd2_loai)
+        form.addRow("Diện tích 2 (64):", self.txt_mdsd2_dt)
+        form.addRow("Hình thức 2 (65):", self.cmb_mdsd2_ht)
+        form.addRow("Thời hạn 2 (66):", self.txt_mdsd2_thoihan)
+        form.addRow("Mã nguồn gốc 2 (67):", self.cmb_mdsd2_nguongoc)
+        form.addRow("Mã nguồn gốc khác 2 (68):", self.cmb_mdsd2_ma_nguon_goc)
+        form.addRow("Nguồn gốc chi tiết 2 (69):", self.txt_mdsd2_nguongoc_chitiet)
+        form.addRow(self.chk_has_mdsd3)
+        form.addRow("Loại đất 3 (70):", self.cmb_mdsd3_loai)
+        form.addRow("Diện tích 3 (72):", self.txt_mdsd3_dt)
+        form.addRow("Hình thức 3 (73):", self.cmb_mdsd3_ht)
+        form.addRow("Thời hạn 3 (74):", self.txt_mdsd3_thoihan)
+        form.addRow("Mã nguồn gốc 3 (75):", self.cmb_mdsd3_nguongoc)
+        form.addRow("Mã nguồn gốc khác 3 (76):", self.cmb_mdsd3_ma_nguon_goc)
+        form.addRow("Nguồn gốc chi tiết 3 (77):", self.txt_mdsd3_nguongoc_chitiet)
+        form.addRow("Đường phố (89):", self.txt_thua_sonha)
+        form.addRow("Tổ/Khu thửa (90):", self.txt_thua_to_dp)
+        form.addRow("Địa chỉ đầy đủ thửa (94):", self.txt_thua_full_addr)
+        form.addRow("Mã đơn (95):", self.txt_thua_ma_don)
+        form.addRow(self.chk_has_quan_ly)
+        form.addRow("ĐTSD QL (96):", self.cmb_ql_dtsd)
+        form.addRow("Hình thức SD (97):", self.cmb_hinh_thuc_sd)
+        form.addRow("Trạng thái ĐK (98):", self.cmb_trang_thai_thua)
+
+        return self._create_scroll_area(container)
+
+    # -------------------------------------------------------------
+    # TAB 5: NVTC & HẠN CHẾ (Cols 111-133)
+    # -------------------------------------------------------------
+    def _create_tab_nvtc(self) -> QWidget:
+        container = QWidget()
+        vbox = QVBoxLayout(container)
+        vbox.setContentsMargins(4, 4, 4, 4)
+
+        # 1. Hạn chế quyền (111-117)
+        self.chk_has_han_che = QCheckBox("☑ Có Hạn chế quyền (Cols 111-117)")
+        vbox.addWidget(self.chk_has_han_che)
+        grp_hc = QGroupBox("Hạn chế quyền")
+        fhc = QFormLayout(grp_hc)
+        self._setup_form_layout(fhc)
+
+        self.cmb_hc_loai = SearchableComboBox()
+        self.cmb_hc_loai.addItem("[Không chọn]", "")
+        for r_code in self.master_data.restriction_types:
+            self.cmb_hc_loai.addItem(r_code, r_code)
+        self._register_input(111, self.cmb_hc_loai)
+
+        self.txt_hc_dt = QLineEdit("")
+        self._register_input(112, self.txt_hc_dt)
+        self.txt_hc_noidung = QLineEdit("")
+        self._register_input(113, self.txt_hc_noidung)
+        self.txt_hc_sovb = QLineEdit("")
+        self._register_input(114, self.txt_hc_sovb)
+        self.txt_hc_ngaybh = QLineEdit("")
+        self._register_input(115, self.txt_hc_ngaybh)
+        self.txt_hc_cqbh = QLineEdit("")
+        self._register_input(116, self.txt_hc_cqbh)
+        self.chk_hc_1phan = QCheckBox("1 - Hạn chế 1 phần")
+        self._register_input(117, self.chk_hc_1phan)
+
+        fhc.addRow("Loại hạn chế (111):", self.cmb_hc_loai)
+        fhc.addRow("Diện tích (112):", self.txt_hc_dt)
+        fhc.addRow("Nội dung (113):", self.txt_hc_noidung)
+        fhc.addRow("Số văn bản (114):", self.txt_hc_sovb)
+        fhc.addRow("Ngày ban hành (115):", self.txt_hc_ngaybh)
+        fhc.addRow("Cơ quan BH (116):", self.txt_hc_cqbh)
+        fhc.addRow("Hạn chế 1 phần (117):", self.chk_hc_1phan)
+        vbox.addWidget(grp_hc)
+        grp_hc.setEnabled(False)
+        self.chk_has_han_che.toggled.connect(grp_hc.setEnabled)
+
+        # 2. NVTC (118-123)
+        self.chk_has_nvtc = QCheckBox("☑ Có Nghĩa vụ tài chính (Cols 118-123)")
+        vbox.addWidget(self.chk_has_nvtc)
+        grp_nvtc = QGroupBox("Nghĩa vụ tài chính")
+        f1 = QFormLayout(grp_nvtc)
+        self._setup_form_layout(f1)
+
+        self.cmb_nvtc_loai = SearchableComboBox()
+        self.cmb_nvtc_loai.addItem("[Không chọn]", "")
+        for n_code in self.master_data.nvtc_types:
+            self.cmb_nvtc_loai.addItem(n_code, n_code)
+        self._register_input(118, self.cmb_nvtc_loai)
+
+        self.txt_nvtc_tongtien = QLineEdit("")
+        self._register_input(119, self.txt_nvtc_tongtien)
+        self.txt_nvtc_miengiam = QLineEdit("")
+        self._register_input(120, self.txt_nvtc_miengiam)
+        self.txt_nvtc_tienno = QLineEdit("")
+        self._register_input(121, self.txt_nvtc_tienno)
+        self.txt_nvtc_ngaybd = QLineEdit("")
+        self._register_input(122, self.txt_nvtc_ngaybd)
+        self.txt_nvtc_ngayht = QLineEdit("")
+        self._register_input(123, self.txt_nvtc_ngayht)
+
+        f1.addRow("Loại NVTC (118):", self.cmb_nvtc_loai)
+        f1.addRow("Tổng số tiền (119):", self.txt_nvtc_tongtien)
+        f1.addRow("Tổng miễn giảm (120):", self.txt_nvtc_miengiam)
+        f1.addRow("Tổng tiền nợ (121):", self.txt_nvtc_tienno)
+        f1.addRow("Ngày bắt đầu (122):", self.txt_nvtc_ngaybd)
+        f1.addRow("Ngày hoàn thành (123):", self.txt_nvtc_ngayht)
+        vbox.addWidget(grp_nvtc)
+        grp_nvtc.setEnabled(False)
+        self.chk_has_nvtc.toggled.connect(grp_nvtc.setEnabled)
+
+        # 3. Miễn giảm (124-128)
+        self.chk_has_mg = QCheckBox("☑ Miễn giảm NVTC (Cols 124-128)")
+        vbox.addWidget(self.chk_has_mg)
+        grp_mg = QGroupBox("Miễn giảm nghĩa vụ tài chính")
+        f2 = QFormLayout(grp_mg)
+        self._setup_form_layout(f2)
+
+        self.txt_mg_loai = QLineEdit("")
+        self._register_input(124, self.txt_mg_loai)
+        self.txt_mg_sotien = QLineEdit("")
+        self._register_input(125, self.txt_mg_sotien)
+        self.txt_mg_sovb = QLineEdit("")
+        self._register_input(126, self.txt_mg_sovb)
+        self.txt_mg_ngaybh = QLineEdit("")
+        self._register_input(127, self.txt_mg_ngaybh)
+        self.txt_mg_cqbh = QLineEdit("")
+        self._register_input(128, self.txt_mg_cqbh)
+
+        f2.addRow("Loại chế độ (124):", self.txt_mg_loai)
+        f2.addRow("Số tiền (125):", self.txt_mg_sotien)
+        f2.addRow("Số văn bản (126):", self.txt_mg_sovb)
+        f2.addRow("Ngày ban hành (127):", self.txt_mg_ngaybh)
+        f2.addRow("Cơ quan BH (128):", self.txt_mg_cqbh)
+        vbox.addWidget(grp_mg)
+        grp_mg.setEnabled(False)
+        self.chk_has_mg.toggled.connect(grp_mg.setEnabled)
+
+        # 4. Nợ NVTC (129-133)
+        self.chk_has_no = QCheckBox("☑ Nợ nghĩa vụ tài chính (Cols 129-133)")
+        vbox.addWidget(self.chk_has_no)
+        grp_no = QGroupBox("Nợ nghĩa vụ tài chính")
+        f3 = QFormLayout(grp_no)
+        self._setup_form_layout(f3)
+
+        self.txt_no_loai = QLineEdit("")
+        self._register_input(129, self.txt_no_loai)
+        self.txt_no_sotien = QLineEdit("")
+        self._register_input(130, self.txt_no_sotien)
+        self.txt_no_soqd = QLineEdit("")
+        self._register_input(131, self.txt_no_soqd)
+        self.txt_no_ngaybh = QLineEdit("")
+        self._register_input(132, self.txt_no_ngaybh)
+        self.txt_no_cqbh = QLineEdit("")
+        self._register_input(133, self.txt_no_cqbh)
+
+        f3.addRow("Loại chế độ (129):", self.txt_no_loai)
+        f3.addRow("Số tiền (130):", self.txt_no_sotien)
+        f3.addRow("Số quyết định (131):", self.txt_no_soqd)
+        f3.addRow("Ngày ban hành (132):", self.txt_no_ngaybh)
+        f3.addRow("Cơ quan BH (133):", self.txt_no_cqbh)
+        vbox.addWidget(grp_no)
+        grp_no.setEnabled(False)
+        self.chk_has_no.toggled.connect(grp_no.setEnabled)
+
+        return self._create_scroll_area(container)
+
+    # -------------------------------------------------------------
+    # TAB 6: TÀI SẢN & LƯU KHO (Cols 134-186)
+    # -------------------------------------------------------------
+    def _create_tab_tai_san_va_khac(self) -> QWidget:
+        container = QWidget()
+        vbox = QVBoxLayout(container)
+        vbox.setContentsMargins(4, 4, 4, 4)
+
+        # 1. Nhà ở riêng lẻ (134-141)
+        self.chk_has_nha = QCheckBox("☑ Nhà ở riêng lẻ (Cols 134-141)")
+        vbox.addWidget(self.chk_has_nha)
+        grp_nha = QGroupBox("Nhà ở riêng lẻ")
+        fnha = QFormLayout(grp_nha)
+        self._setup_form_layout(fnha)
+
+        self.txt_nha_dt_xd = QLineEdit("")
+        self._register_input(134, self.txt_nha_dt_xd)
+        self.txt_nha_dt_san = QLineEdit("")
+        self._register_input(135, self.txt_nha_dt_san)
+        self.txt_nha_so_tang = QLineEdit("")
+        self._register_input(136, self.txt_nha_so_tang)
+        self.txt_nha_tang_ham = QLineEdit("")
+        self._register_input(137, self.txt_nha_tang_ham)
+        self.txt_nha_ket_cau = QLineEdit("")
+        self._register_input(138, self.txt_nha_ket_cau)
+        self.cmb_nha_cap_hang = SearchableComboBox()
+        self.cmb_nha_cap_hang.addItem("[Không chọn]", "")
+        for rk in self.master_data.rank_types:
+            self.cmb_nha_cap_hang.addItem(rk, rk)
+        self._register_input(139, self.cmb_nha_cap_hang)
+        self.txt_nha_dia_chi = QLineEdit("")
+        self._register_input(140, self.txt_nha_dia_chi)
+        self.txt_nha_thoi_han = QLineEdit("")
+        self._register_input(141, self.txt_nha_thoi_han)
+
+        fnha.addRow("DT xây dựng (134):", self.txt_nha_dt_xd)
+        fnha.addRow("DT sàn (135):", self.txt_nha_dt_san)
+        fnha.addRow("Số tầng (136):", self.txt_nha_so_tang)
+        fnha.addRow("Số tầng hầm (137):", self.txt_nha_tang_ham)
+        fnha.addRow("Kết cấu (138):", self.txt_nha_ket_cau)
+        fnha.addRow("Cấp hạng (139):", self.cmb_nha_cap_hang)
+        fnha.addRow("Địa chỉ (140):", self.txt_nha_dia_chi)
+        fnha.addRow("Thời hạn SH (141):", self.txt_nha_thoi_han)
+        vbox.addWidget(grp_nha)
+        grp_nha.setEnabled(False)
+        self.chk_has_nha.toggled.connect(grp_nha.setEnabled)
+
+        # 2. Công trình XD (142-154)
+        self.chk_has_ctxd = QCheckBox("☑ Công trình, hạng mục công trình XD (Cols 142-154)")
+        vbox.addWidget(self.chk_has_ctxd)
+        grp_ctxd = QGroupBox("Công trình xây dựng")
+        fct = QFormLayout(grp_ctxd)
+        self._setup_form_layout(fct)
+
+        self.txt_ctxd_ten = QLineEdit("")
+        self._register_input(142, self.txt_ctxd_ten)
+        self.txt_ctxd_diachi = QLineEdit("")
+        self._register_input(143, self.txt_ctxd_diachi)
+        self.txt_ctxd_hangmuc = QLineEdit("")
+        self._register_input(144, self.txt_ctxd_hangmuc)
+        self.txt_ctxd_congnang = QLineEdit("")
+        self._register_input(145, self.txt_ctxd_congnang)
+        self.txt_ctxd_dtxd = QLineEdit("")
+        self._register_input(146, self.txt_ctxd_dtxd)
+        self.txt_ctxd_dts = QLineEdit("")
+        self._register_input(147, self.txt_ctxd_dts)
+        self.txt_ctxd_sotang = QLineEdit("")
+        self._register_input(148, self.txt_ctxd_sotang)
+        self.txt_ctxd_tangham = QLineEdit("")
+        self._register_input(149, self.txt_ctxd_tangham)
+        self.txt_ctxd_ketcau = QLineEdit("")
+        self._register_input(150, self.txt_ctxd_ketcau)
+        self.txt_ctxd_namxd = QLineEdit("")
+        self._register_input(151, self.txt_ctxd_namxd)
+        self.txt_ctxd_namht = QLineEdit("")
+        self._register_input(152, self.txt_ctxd_namht)
+        self.txt_ctxd_thoihan = QLineEdit("")
+        self._register_input(153, self.txt_ctxd_thoihan)
+        self.cmb_ctxd_caphang = SearchableComboBox()
+        self.cmb_ctxd_caphang.addItem("[Không chọn]", "")
+        for rk in self.master_data.rank_types:
+            self.cmb_ctxd_caphang.addItem(rk, rk)
+        self._register_input(154, self.cmb_ctxd_caphang)
+
+        fct.addRow("Tên công trình (142):", self.txt_ctxd_ten)
+        fct.addRow("Địa chỉ (143):", self.txt_ctxd_diachi)
+        fct.addRow("Tên hạng mục (144):", self.txt_ctxd_hangmuc)
+        fct.addRow("Công năng (145):", self.txt_ctxd_congnang)
+        fct.addRow("DT xây dựng (146):", self.txt_ctxd_dtxd)
+        fct.addRow("DT sàn (147):", self.txt_ctxd_dts)
+        fct.addRow("Số tầng (148):", self.txt_ctxd_sotang)
+        fct.addRow("Số tầng hầm (149):", self.txt_ctxd_tangham)
+        fct.addRow("Kết cấu (150):", self.txt_ctxd_ketcau)
+        fct.addRow("Năm XD (151):", self.txt_ctxd_namxd)
+        fct.addRow("Năm HT (152):", self.txt_ctxd_namht)
+        fct.addRow("Thời hạn SH (153):", self.txt_ctxd_thoihan)
+        fct.addRow("Cấp hạng (154):", self.cmb_ctxd_caphang)
+        vbox.addWidget(grp_ctxd)
+        grp_ctxd.setEnabled(False)
+        self.chk_has_ctxd.toggled.connect(grp_ctxd.setEnabled)
+
+        # 3. Công trình ngầm (155-162)
+        self.chk_has_ctngam = QCheckBox("☑ Công trình ngầm (Cols 155-162)")
+        vbox.addWidget(self.chk_has_ctngam)
+        grp_ngam = QGroupBox("Công trình ngầm")
+        fngam = QFormLayout(grp_ngam)
+        self._setup_form_layout(fngam)
+
+        self.txt_ctn_ten = QLineEdit("")
+        self._register_input(155, self.txt_ctn_ten)
+        self.txt_ctn_loai = QLineEdit("")
+        self._register_input(156, self.txt_ctn_loai)
+        self.txt_ctn_dt = QLineEdit("")
+        self._register_input(157, self.txt_ctn_dt)
+        self.txt_ctn_dosau = QLineEdit("")
+        self._register_input(158, self.txt_ctn_dosau)
+        self.txt_ctn_vitri = QLineEdit("")
+        self._register_input(159, self.txt_ctn_vitri)
+        self.txt_ctn_namxd = QLineEdit("")
+        self._register_input(160, self.txt_ctn_namxd)
+        self.txt_ctn_namht = QLineEdit("")
+        self._register_input(161, self.txt_ctn_namht)
+        self.txt_ctn_thoihan = QLineEdit("")
+        self._register_input(162, self.txt_ctn_thoihan)
+
+        fngam.addRow("Tên công trình (155):", self.txt_ctn_ten)
+        fngam.addRow("Loại CT (156):", self.txt_ctn_loai)
+        fngam.addRow("Diện tích (157):", self.txt_ctn_dt)
+        fngam.addRow("Độ sâu tối đa (158):", self.txt_ctn_dosau)
+        fngam.addRow("Vị trí đầu nối (159):", self.txt_ctn_vitri)
+        fngam.addRow("Năm XD (160):", self.txt_ctn_namxd)
+        fngam.addRow("Năm HT (161):", self.txt_ctn_namht)
+        fngam.addRow("Thời hạn SH (162):", self.txt_ctn_thoihan)
+        vbox.addWidget(grp_ngam)
+        grp_ngam.setEnabled(False)
+        self.chk_has_ctngam.toggled.connect(grp_ngam.setEnabled)
+
+        # 4. Rừng trồng & Cây lâu năm (163-168)
+        self.chk_has_cay = QCheckBox("☑ Rừng trồng & Cây lâu năm (Cols 163-168)")
+        vbox.addWidget(self.chk_has_cay)
+        grp_cay = QGroupBox("Rừng trồng & Cây lâu năm")
+        fcay = QFormLayout(grp_cay)
+        self._setup_form_layout(fcay)
+
+        self.txt_rt_ten = QLineEdit("")
+        self._register_input(163, self.txt_rt_ten)
+        self.txt_rt_loai = QLineEdit("")
+        self._register_input(164, self.txt_rt_loai)
+        self.txt_rt_dt = QLineEdit("")
+        self._register_input(165, self.txt_rt_dt)
+        self.txt_cln_ten = QLineEdit("")
+        self._register_input(166, self.txt_cln_ten)
+        self.txt_cln_loai = QLineEdit("")
+        self._register_input(167, self.txt_cln_loai)
+        self.txt_cln_dt = QLineEdit("")
+        self._register_input(168, self.txt_cln_dt)
+
+        fcay.addRow("Tên rừng (163):", self.txt_rt_ten)
+        fcay.addRow("Loại cây rừng (164):", self.txt_rt_loai)
+        fcay.addRow("Diện tích rừng (165):", self.txt_rt_dt)
+        fcay.addRow("Tên cây lâu năm (166):", self.txt_cln_ten)
+        fcay.addRow("Loại cây trồng (167):", self.txt_cln_loai)
+        fcay.addRow("Diện tích cây (168):", self.txt_cln_dt)
+        vbox.addWidget(grp_cay)
+        grp_cay.setEnabled(False)
+        self.chk_has_cay.toggled.connect(grp_cay.setEnabled)
+
+        # 5. Thửa đất cũ (169-178)
+        self.chk_has_thua_cu = QCheckBox("☑ Thửa đất cũ (Cols 169-178)")
+        vbox.addWidget(self.chk_has_thua_cu)
+        grp_tc = QGroupBox("Thông tin thửa đất cũ")
+        ftc = QFormLayout(grp_tc)
+        self._setup_form_layout(ftc)
+
+        self.txt_tc_to = QLineEdit("")
+        self._register_input(169, self.txt_tc_to)
+        self.txt_tc_thua = QLineEdit("")
+        self._register_input(170, self.txt_tc_thua)
+        self.txt_tc_dt = QLineEdit("")
+        self._register_input(171, self.txt_tc_dt)
+        self.cmb_tc_loaidat = SearchableComboBox()
+        self._populate_land_types(self.cmb_tc_loaidat)
+        self._register_input(172, self.cmb_tc_loaidat)
+        self.txt_tc_thoihan = QLineEdit("")
+        self._register_input(173, self.txt_tc_thoihan)
+        self.cmb_tc_nguongoc = SearchableComboBox()
+        self._populate_land_use_origins(self.cmb_tc_nguongoc)
+        self._register_input(174, self.cmb_tc_nguongoc)
+        self.txt_tc_serial = QLineEdit("")
+        self._register_input(175, self.txt_tc_serial)
+        self.txt_tc_sovaoso = QLineEdit("")
+        self._register_input(176, self.txt_tc_sovaoso)
+        self.txt_tc_ngaycap = QLineEdit("")
+        self._register_input(177, self.txt_tc_ngaycap)
+        self.cmb_tc_hinhthuc = SearchableComboBox()
+        self.cmb_tc_hinhthuc.addItem("[Không chọn]", "")
+        self.cmb_tc_hinhthuc.addItem("0 - Sử dụng riêng", "0")
+        self.cmb_tc_hinhthuc.addItem("1 - Sử dụng chung", "1")
+        self._register_input(178, self.cmb_tc_hinhthuc)
+
+        ftc.addRow("Tờ bản đồ (169):", self.txt_tc_to)
+        ftc.addRow("Số thửa (170):", self.txt_tc_thua)
+        ftc.addRow("Diện tích (171):", self.txt_tc_dt)
+        ftc.addRow("Loại đất GCN (172):", self.cmb_tc_loaidat)
+        ftc.addRow("Thời hạn (173):", self.txt_tc_thoihan)
+        ftc.addRow("Nguồn gốc (174):", self.cmb_tc_nguongoc)
+        ftc.addRow("Số Serial (175):", self.txt_tc_serial)
+        ftc.addRow("Số vào sổ (176):", self.txt_tc_sovaoso)
+        ftc.addRow("Ngày cấp (177):", self.txt_tc_ngaycap)
+        ftc.addRow("Hình thức SD (178):", self.cmb_tc_hinhthuc)
+        vbox.addWidget(grp_tc)
+        grp_tc.setEnabled(False)
+        self.chk_has_thua_cu.toggled.connect(grp_tc.setEnabled)
+
+        # 6. Lưu kho & Giao nộp (179-186)
+        grp_lk = QGroupBox("Lưu kho & Giao nộp (Cols 179-186)")
+        flk = QFormLayout(grp_lk)
+        self._setup_form_layout(flk)
+
+        self.txt_lk_kho = QLineEdit("")
+        self._register_input(179, self.txt_lk_kho)
+        self.txt_lk_gia = QLineEdit("")
+        self._register_input(180, self.txt_lk_gia)
+        self.txt_lk_ke = QLineEdit("")
+        self._register_input(181, self.txt_lk_ke)
+        self.txt_lk_ngan = QLineEdit("")
+        self._register_input(182, self.txt_lk_ngan)
+        self.txt_hsq_folder = QLineEdit("")
+        self._register_input(183, self.txt_hsq_folder)
+        self.txt_thu_muc_hsq = self.txt_hsq_folder  # Alias
+        self.txt_gn_dot = QLineEdit("")
+        self._register_input(184, self.txt_gn_dot)
+        self.cmb_kt_trangthai = SearchableComboBox()
+        self.cmb_kt_trangthai.addItem("[Không chọn]", "")
+        self.cmb_kt_trangthai.addItem("0 - Chưa kiểm tra", "0")
+        self.cmb_kt_trangthai.addItem("1 - Đã kiểm tra", "1")
+        self._register_input(185, self.cmb_kt_trangthai)
+        self.txt_gn_ghichu = QLineEdit("")
+        self._register_input(186, self.txt_gn_ghichu)
+
+        flk.addRow("Kho (179):", self.txt_lk_kho)
+        flk.addRow("Giá (180):", self.txt_lk_gia)
+        flk.addRow("Kệ (181):", self.txt_lk_ke)
+        flk.addRow("Ngăn (182):", self.txt_lk_ngan)
+        flk.addRow("Thư mục lưu HSQ (183):", self.txt_hsq_folder)
+        flk.addRow("Đợt giao nộp (184):", self.txt_gn_dot)
+        flk.addRow("Trạng thái KT (185):", self.cmb_kt_trangthai)
+        flk.addRow("Nội dung ghi chú (186):", self.txt_gn_ghichu)
+        vbox.addWidget(grp_lk)
+
+        return self._create_scroll_area(container)
+
+    # -------------------------------------------------------------
+    # AUTO-SYNC AND HELPER LOGIC
+    # -------------------------------------------------------------
+    def _populate_communes(self, combo: QComboBox):
+        """Populates commune selector for Col 93 (saving full location text)."""
+        combo.clear()
+        combo.addItem("[Không chọn]", "")
+        for c in self.master_data.communes:
+            disp_text = f"{c.name_3cap}, {c.district}, Tỉnh Quảng Ninh ({c.code_3cap})"
+            combo.addItem(disp_text, c.full_location)
+
+    def _populate_communes_for_tab(self, combo: QComboBox):
+        """Populates commune selector for tabbed fields (Cols 20, 37)."""
+        combo.clear()
+        combo.addItem("[Không chọn]", "")
+        for c in self.master_data.communes:
+            disp_text = f"{c.code_3cap} - {c.name_3cap}, {c.district}"
+            combo.addItem(disp_text, c)
+
+    def _populate_land_types(self, combo: QComboBox):
+        combo.clear()
+        combo.addItem("[Không chọn]", "")
+        for lt in self.master_data.land_types:
+            disp_text = f"{lt.code} - {lt.name}"
+            combo.addItem(disp_text, lt.code)
+
+    def _populate_land_use_origins(self, combo: QComboBox):
+        combo.clear()
+        combo.addItem("[Không chọn]", "")
+        for code, name in self.master_data.land_use_origins:
+            disp_text = f"{code} - {name}"
+            combo.addItem(disp_text, code)
 
     def _auto_sync_ma_hs_goc(self, text: str):
         clean = text.strip()
@@ -459,12 +1505,11 @@ class AttributeFormWidget(QWidget):
             self.txt_ma_hs.setText(clean)
 
     def _auto_sync_ma_don(self, text: str):
-        """Auto-populates Col 95 (Mã đơn) from Col 2 (Số Serial) without spaces."""
         clean = text.replace(" ", "").strip()
-        self.txt_thua_ma_don.setText(clean)
+        if hasattr(self, 'txt_thua_ma_don'):
+            self.txt_thua_ma_don.setText(clean)
 
     def _auto_sync_ngay_vao_so(self, text: str):
-        """When Ngày vào sổ (Col 101) is filled, syncs to Ngày ký (Col 102) and Ngày cấp (Col 106)."""
         clean = text.strip()
         if clean:
             self.txt_ngay_ky.setText(clean)
@@ -489,1034 +1534,11 @@ class AttributeFormWidget(QWidget):
             if year_part.isdigit() and (not self.txt_vo_nam_sinh.text() or len(self.txt_vo_nam_sinh.text()) != 4):
                 self.txt_vo_nam_sinh.setText(year_part)
 
-    # -------------------------------------------------------------
-    # TAB 2: CHỦ SỬ DỤNG (Cols 5-25)
-    # -------------------------------------------------------------
-    def _create_tab_chu(self) -> QWidget:
-        container = QWidget()
-        form = QFormLayout(container)
-        self._setup_form_layout(form)
-
-        self.txt_chu_ma = QLineEdit()
-        self._register_input(5, self.txt_chu_ma)
-
-        self.cmb_chu_dtsd = SearchableComboBox()
-        if self.master_data.dtsd_list:
-            for code, name in self.master_data.dtsd_list:
-                self.cmb_chu_dtsd.addItem(f"{code} - {name}", code)
-        else:
-            self.cmb_chu_dtsd.addItem("CNV - Cá nhân trong nước", "CNV")
-            self.cmb_chu_dtsd.addItem("GDC - Hộ gia đình, cá nhân", "GDC")
-            self.cmb_chu_dtsd.addItem("TCC - Tổ chức trong nước", "TCC")
-        self.cmb_chu_dtsd.setCurrentText("CNV - Cá nhân trong nước")
-        self._register_input(6, self.cmb_chu_dtsd)
-
-        self.cmb_chu_hgd = SearchableComboBox()
-        self.cmb_chu_hgd.addItem("0 - Không phải HGD", "0")
-        self.cmb_chu_hgd.addItem("1 - Là Hộ gia đình", "1")
-        self._register_input(7, self.cmb_chu_hgd)
-
-        self.cmb_chu_daidien = SearchableComboBox()
-        self.cmb_chu_daidien.addItem("0 - Không phải đại diện", "0")
-        self.cmb_chu_daidien.addItem("1 - Là người đại diện", "1")
-        self._register_input(8, self.cmb_chu_daidien)
-
-        self.txt_chu_name = QLineEdit()
-        self.txt_chu_name.setPlaceholderText("Ví dụ: Nguyễn Anh Tuấn")
-        self._register_input(9, self.txt_chu_name)
-
-        self.cmb_chu_gioitinh = SearchableComboBox()
-        self.cmb_chu_gioitinh.addItem("Nam", "1")
-        self.cmb_chu_gioitinh.addItem("Nữ", "0")
-        self.cmb_chu_gioitinh.addItem("[Trống]", "")
-        self.cmb_chu_gioitinh.setCurrentText("Nam")
-        self._register_input(10, self.cmb_chu_gioitinh)
-
-        self.txt_chu_ngay_sinh = QLineEdit()
-        self.txt_chu_ngay_sinh.setPlaceholderText("Ví dụ: 15/08/1980")
-        self.txt_chu_ngay_sinh.textChanged.connect(self._auto_sync_chu_nam_sinh)
-        self._register_input(11, self.txt_chu_ngay_sinh)
-
-        self.txt_chu_nam_sinh = QLineEdit()
-        self.txt_chu_nam_sinh.setPlaceholderText("Ví dụ: 1980")
-        self._register_input(12, self.txt_chu_nam_sinh)
-
-        # Loại GT: lấy mã viết tắt CCCD, CMND, HC, GKS, QD, K
-        self.cmb_chu_id_type = SearchableComboBox()
-        for code, label in self.master_data.id_types:
-            self.cmb_chu_id_type.addItem(label, code)
-        self.cmb_chu_id_type.setCurrentText("CCCD - Căn cước công dân")
-        self._register_input(13, self.cmb_chu_id_type)
-
-        self.txt_chu_id_num = QLineEdit()
-        self.txt_chu_id_num.setPlaceholderText("Số CCCD / CMND")
-        self._register_input(14, self.txt_chu_id_num)
-
-        self.txt_chu_id_date = QLineEdit()
-        self._register_input(15, self.txt_chu_id_date)
-
-        self.txt_chu_id_place = SearchableComboBox()
-        for opt in DEFAULT_NOI_CAP_LIST:
-            self.txt_chu_id_place.addItem(opt, opt)
-        self.txt_chu_id_place.setCurrentText("Cục Cảnh sát quản lý hành chính về trật tự xã hội")
-        self._register_input(16, self.txt_chu_id_place)
-
-        self.txt_chu_address = QLineEdit()
-        self._register_input(17, self.txt_chu_address)
-
-        self.txt_chu_sonha = QLineEdit()
-        self._register_input(18, self.txt_chu_sonha)
-
-        self.txt_chu_to = QLineEdit()
-        self.txt_chu_to.setPlaceholderText("Ví dụ: Khu 5")
-        self.txt_chu_to.textChanged.connect(self._update_chu_full_address)
-        self._register_input(19, self.txt_chu_to)
-
-        self.cmb_chu_xa = SearchableComboBox()
-        self._populate_communes(self.cmb_chu_xa)
-        self.cmb_chu_xa.currentIndexChanged.connect(self._on_chu_commune_changed)
-        self._register_input(20, self.cmb_chu_xa)
-
-        self.txt_chu_xa_huyen_tinh = QLineEdit()
-        self.txt_chu_xa_huyen_tinh.setPlaceholderText("Xã/Phường, Quận/Huyện, Tỉnh/TP")
-        self.txt_chu_xa_huyen_tinh.textChanged.connect(self._update_chu_full_address)
-        self._register_input(21, self.txt_chu_xa_huyen_tinh)
-
-        self.txt_chu_full_addr = QLineEdit()
-        self.txt_chu_full_addr.textChanged.connect(self._on_chu_full_addr_changed)
-        self._register_input(22, self.txt_chu_full_addr)
-
-        self.txt_chu_phone = QLineEdit()
-        self._register_input(23, self.txt_chu_phone)
-
-        self.cmb_chu_dantoc = SearchableComboBox()
-        self.cmb_chu_dantoc.addItems(self.master_data.ethnicities)
-        self.cmb_chu_dantoc.setCurrentText("Không rõ")
-        self._register_input(24, self.cmb_chu_dantoc)
-
-        self.cmb_chu_quoctich = SearchableComboBox()
-        self.cmb_chu_quoctich.addItems(self.master_data.nationalities)
-        self.cmb_chu_quoctich.setCurrentText("Viet Nam")
-        self._register_input(25, self.cmb_chu_quoctich)
-
-        form.addRow("Mã chủ (5):", self.txt_chu_ma)
-        form.addRow("ĐTSD (6):", self.cmb_chu_dtsd)
-        form.addRow("Là HGD (7):", self.cmb_chu_hgd)
-        form.addRow("Đại diện (8):", self.cmb_chu_daidien)
-        form.addRow("Họ tên Chủ (9):", self.txt_chu_name)
-        form.addRow("Giới tính (10):", self.cmb_chu_gioitinh)
-        form.addRow("Ngày tháng năm sinh (11):", self.txt_chu_ngay_sinh)
-        form.addRow("Năm sinh (12):", self.txt_chu_nam_sinh)
-        form.addRow("Loại GT (13):", self.cmb_chu_id_type)
-        form.addRow("Số GT/CCCD (14):", self.txt_chu_id_num)
-        form.addRow("Ngày cấp (15):", self.txt_chu_id_date)
-        form.addRow("Nơi cấp (16):", self.txt_chu_id_place)
-        form.addRow("Địa chỉ CT (17):", self.txt_chu_address)
-        form.addRow("Số nhà (18):", self.txt_chu_sonha)
-        form.addRow("Tổ/Khu (19):", self.txt_chu_to)
-        form.addRow("Mã Xã (20):", self.cmb_chu_xa)
-        form.addRow("Xã/Huyện (21):", self.txt_chu_xa_huyen_tinh)
-        form.addRow("Đ/C đầy đủ (22):", self.txt_chu_full_addr)
-        form.addRow("SĐT (23):", self.txt_chu_phone)
-        form.addRow("Dân tộc (24):", self.cmb_chu_dantoc)
-        form.addRow("Quốc tịch (25):", self.cmb_chu_quoctich)
-
-        return self._create_scroll_area(container)
-
-    # -------------------------------------------------------------
-    # TAB 3: VỢ / CHỒNG (Cols 26-42)
-    # -------------------------------------------------------------
-    def _create_tab_vo_chong(self) -> QWidget:
-        container = QWidget()
-        form = QFormLayout(container)
-        self._setup_form_layout(form)
-
-        self.chk_has_spouse = QCheckBox("Có thông tin Vợ / Chồng (Đồng sử dụng)")
-        self.chk_has_spouse.setStyleSheet("font-weight: bold; color: #d81b60; font-size: 11px;")
-        self.chk_has_spouse.toggled.connect(self._toggle_spouse_fields)
-        form.addRow(self.chk_has_spouse)
-
-        self.txt_vo_name = QLineEdit()
-        self._register_input(26, self.txt_vo_name)
-
-        self.cmb_vo_gioitinh = SearchableComboBox()
-        self.cmb_vo_gioitinh.addItem("Nữ", "0")
-        self.cmb_vo_gioitinh.addItem("Nam", "1")
-        self.cmb_vo_gioitinh.addItem("[Trống]", "")
-        self.cmb_vo_gioitinh.setCurrentText("Nữ")
-        self._register_input(27, self.cmb_vo_gioitinh)
-
-        self.txt_vo_ngay_sinh = QLineEdit()
-        self.txt_vo_ngay_sinh.setPlaceholderText("Ví dụ: 20/10/1982")
-        self.txt_vo_ngay_sinh.textChanged.connect(self._auto_sync_vo_nam_sinh)
-        self._register_input(28, self.txt_vo_ngay_sinh)
-
-        self.txt_vo_nam_sinh = QLineEdit()
-        self.txt_vo_nam_sinh.setPlaceholderText("Ví dụ: 1982")
-        self._register_input(29, self.txt_vo_nam_sinh)
-
-        self.cmb_vo_id_type = SearchableComboBox()
-        for code, label in self.master_data.id_types:
-            self.cmb_vo_id_type.addItem(label, code)
-        self.cmb_vo_id_type.setCurrentText("CCCD - Căn cước công dân")
-        self._register_input(30, self.cmb_vo_id_type)
-
-        self.txt_vo_id_num = QLineEdit()
-        self._register_input(31, self.txt_vo_id_num)
-
-        self.txt_vo_id_date = QLineEdit()
-        self._register_input(32, self.txt_vo_id_date)
-
-        self.txt_vo_id_place = SearchableComboBox()
-        for opt in DEFAULT_NOI_CAP_LIST:
-            self.txt_vo_id_place.addItem(opt, opt)
-        self.txt_vo_id_place.setCurrentText("Cục Cảnh sát quản lý hành chính về trật tự xã hội")
-        self._register_input(33, self.txt_vo_id_place)
-
-        self.txt_vo_address = QLineEdit()
-        self._register_input(34, self.txt_vo_address)
-
-        self.txt_vo_sonha = QLineEdit()
-        self._register_input(35, self.txt_vo_sonha)
-
-        self.txt_vo_to = QLineEdit()
-        self.txt_vo_to.textChanged.connect(self._update_vo_full_address)
-        self._register_input(36, self.txt_vo_to)
-
-        self.cmb_vo_xa = SearchableComboBox()
-        self._populate_communes(self.cmb_vo_xa)
-        self.cmb_vo_xa.currentIndexChanged.connect(self._on_vo_commune_changed)
-        self._register_input(37, self.cmb_vo_xa)
-
-        self.txt_vo_xa_huyen_tinh = QLineEdit()
-        self.txt_vo_xa_huyen_tinh.setPlaceholderText("Xã/Phường, Quận/Huyện, Tỉnh/TP")
-        self.txt_vo_xa_huyen_tinh.textChanged.connect(self._update_vo_full_address)
-        self._register_input(38, self.txt_vo_xa_huyen_tinh)
-
-        self.txt_vo_full_addr = QLineEdit()
-        self.txt_vo_full_addr.setPlaceholderText("Địa chỉ đầy đủ của Vợ / Chồng")
-        self._register_input(39, self.txt_vo_full_addr)
-
-        self.txt_vo_phone = QLineEdit()
-        self._register_input(40, self.txt_vo_phone)
-
-        self.cmb_vo_dantoc = SearchableComboBox()
-        if "Không rõ" not in self.master_data.ethnicities:
-            self.cmb_vo_dantoc.addItem("Không rõ", "Không rõ")
-        for e in self.master_data.ethnicities:
-            if e != "Không rõ":
-                self.cmb_vo_dantoc.addItem(e, e)
-        self.cmb_vo_dantoc.setCurrentText("Không rõ")
-        self._register_input(41, self.cmb_vo_dantoc)
-
-        self.cmb_vo_quoctich = SearchableComboBox()
-        for n in self.master_data.nationalities:
-            self.cmb_vo_quoctich.addItem(n, n)
-        self.cmb_vo_quoctich.setCurrentText("Viet Nam")
-        self._register_input(42, self.cmb_vo_quoctich)
-
-        form.addRow("Họ tên VC (26):", self.txt_vo_name)
-        form.addRow("Giới tính (27):", self.cmb_vo_gioitinh)
-        form.addRow("Ngày tháng năm sinh (28):", self.txt_vo_ngay_sinh)
-        form.addRow("Năm sinh (29):", self.txt_vo_nam_sinh)
-        form.addRow("Loại GT (30):", self.cmb_vo_id_type)
-        form.addRow("Số GT/CCCD (31):", self.txt_vo_id_num)
-        form.addRow("Ngày cấp (32):", self.txt_vo_id_date)
-        form.addRow("Nơi cấp (33):", self.txt_vo_id_place)
-        form.addRow("Địa chỉ CT (34):", self.txt_vo_address)
-        form.addRow("Số nhà (35):", self.txt_vo_sonha)
-        form.addRow("Tổ/Khu (36):", self.txt_vo_to)
-        form.addRow("Mã Xã (37):", self.cmb_vo_xa)
-        form.addRow("Xã/Huyện (38):", self.txt_vo_xa_huyen_tinh)
-        form.addRow("Đ/C đầy đủ (39):", self.txt_vo_full_addr)
-        form.addRow("SĐT (40):", self.txt_vo_phone)
-        form.addRow("Dân tộc (41):", self.cmb_vo_dantoc)
-        form.addRow("Quốc tịch (42):", self.cmb_vo_quoctich)
-
-        self._toggle_spouse_fields(False)
-        return self._create_scroll_area(container)
-
-    def _toggle_spouse_fields(self, enabled: bool):
-        for col in range(26, 43):
-            if col in self.field_inputs:
-                self.field_inputs[col].setEnabled(enabled)
-
-    # -------------------------------------------------------------
-    # TAB 4: THỬA ĐẤT & MĐSD (Cols 43-98)
-    # -------------------------------------------------------------
-    def _create_tab_thua_dat(self) -> QWidget:
-        container = QWidget()
-        root_vbox = QVBoxLayout(container)
-        root_vbox.setContentsMargins(2, 2, 2, 2)
-        root_vbox.setSpacing(4)
-
-        # Top Thửa Đất Fields
-        f_top = QFormLayout()
-        self._setup_form_layout(f_top)
-
-        self.txt_thua_so = QLineEdit()
-        self.txt_thua_so.setPlaceholderText("Ví dụ: 124")
-        self._register_input(43, self.txt_thua_so)
-
-        self.txt_to_so = QLineEdit()
-        self.txt_to_so.setPlaceholderText("Ví dụ: 71")
-        self._register_input(44, self.txt_to_so)
-
-        self.txt_tyle = QLineEdit("1")
-        self._register_input(45, self.txt_tyle)
-
-        # Loại bản đồ: lấy giá trị 1, 2, 3, 4, 5
-        self.cmb_loai_bando = SearchableComboBox()
-        for code, label in self.master_data.map_types:
-            self.cmb_loai_bando.addItem(label, code)
-        self.cmb_loai_bando.setCurrentText("1 - Bản đồ địa chính (VN2000)")
-        self._register_input(46, self.cmb_loai_bando)
-
-        # Đơn vị đo đạc từ QNH_ThongTinDoDac.xlsx
-        self.cmb_don_vi_do = SearchableComboBox()
-        self.cmb_don_vi_do.addItem("", "")
-        for u in self.master_data.measurement_units:
-            self.cmb_don_vi_do.addItem(u, u)
-        self._register_input(47, self.cmb_don_vi_do)
-
-        # Mặc định Col 48: Toàn đạc điện tử
-        self.txt_phuong_phap_do = QLineEdit("Toàn đạc điện tử")
-        self._register_input(48, self.txt_phuong_phap_do)
-
-        # Mặc định Col 49: Cao
-        self.txt_nguoi_kiem_tra = QLineEdit("Cao")
-        self._register_input(49, self.txt_nguoi_kiem_tra)
-
-        # Ngày hoàn thành từ QNH_ThongTinDoDac.xlsx
-        self.txt_ngay_hoan_thanh = QLineEdit()
-        self._register_input(50, self.txt_ngay_hoan_thanh)
-
-        self.cmb_phan_loai_thua = SearchableComboBox()
-        self.cmb_phan_loai_thua.addItem("A - Đã cấp GCN, không có tài sản", "A")
-        self.cmb_phan_loai_thua.addItem("B - Đã cấp GCN, có tài sản", "B")
-        self.cmb_phan_loai_thua.addItem("C - Chưa cấp GCN", "C")
-        self.cmb_phan_loai_thua.addItem("D - Đất công ích / UBND", "D")
-        self.cmb_phan_loai_thua.addItem("E - Thửa đất khác", "E")
-        self.cmb_phan_loai_thua.setCurrentText("A - Đã cấp GCN, không có tài sản")
-        self._register_input(51, self.cmb_phan_loai_thua)
-
-        self.txt_dt_bando = QLineEdit()
-        self.txt_dt_bando.setPlaceholderText("Bỏ qua / Trống")
-        self._register_input(52, self.txt_dt_bando)
-
-        self.txt_dt_phaply = QLineEdit()
-        self.txt_dt_phaply.setPlaceholderText("Ví dụ: 120.5")
-        self.txt_dt_phaply.textChanged.connect(self._auto_sync_dt_phaply)
-        self._register_input(53, self.txt_dt_phaply)
-
-        f_top.addRow("Số thửa (43):", self.txt_thua_so)
-        f_top.addRow("Số tờ (44):", self.txt_to_so)
-        f_top.addRow("Tỷ lệ BĐ (45):", self.txt_tyle)
-        f_top.addRow("Loại BĐ (46):", self.cmb_loai_bando)
-        f_top.addRow("Đơn vị đo (47):", self.cmb_don_vi_do)
-        f_top.addRow("PP đo (48):", self.txt_phuong_phap_do)
-        f_top.addRow("Mức độ chính xác (49):", self.txt_nguoi_kiem_tra)
-        f_top.addRow("Ngày xong (50):", self.txt_ngay_hoan_thanh)
-        f_top.addRow("Phân loại (51):", self.cmb_phan_loai_thua)
-        f_top.addRow("DT bản đồ (52):", self.txt_dt_bando)
-        f_top.addRow("DT pháp lý (53):", self.txt_dt_phaply)
-        root_vbox.addLayout(f_top)
-
-        # --- MĐSD 1 (Cols 54-61) ---
-        grp1 = QGroupBox("Mục đích sử dụng 1 (Chính - Cols 54-61)")
-        f1 = QFormLayout(grp1)
-        self._setup_form_layout(f1)
-
-        self.cmb_mdsd1 = SearchableComboBox()
-        self._populate_land_types(self.cmb_mdsd1)
-        self.cmb_mdsd1.currentIndexChanged.connect(self._on_mdsd1_changed)
-        self._register_input(54, self.cmb_mdsd1)
-
-        self.txt_mdsd1_kh = QLineEdit()
-        self._register_input(55, self.txt_mdsd1_kh)
-
-        self.txt_mdsd1_dt = QLineEdit()
-        self._register_input(56, self.txt_mdsd1_dt)
-
-        self.cmb_mdsd1_sdc = SearchableComboBox()
-        self.cmb_mdsd1_sdc.addItem("0 - Sử dụng riêng", "0")
-        self.cmb_mdsd1_sdc.addItem("1 - Sử dụng chung", "1")
-        self.cmb_mdsd1_sdc.addItem("[Không chọn]", "")
-        self.cmb_mdsd1_sdc.setCurrentText("0 - Sử dụng riêng")
-        self._register_input(57, self.cmb_mdsd1_sdc)
-
-        self.txt_mdsd1_thoi_han = QLineEdit("Lâu dài")
-        self._register_input(58, self.txt_mdsd1_thoi_han)
-
-        self.cmb_mdsd1_nguon_goc = SearchableComboBox()
-        self._populate_land_use_origins(self.cmb_mdsd1_nguon_goc)
-        self.cmb_mdsd1_nguon_goc.currentIndexChanged.connect(self._on_mdsd1_origin_changed)
-        self._register_input(59, self.cmb_mdsd1_nguon_goc)
-
-        self.cmb_mdsd1_ma_nguon_goc = SearchableComboBox()
-        self._populate_land_use_origins(self.cmb_mdsd1_ma_nguon_goc)
-        self.cmb_mdsd1_ma_nguon_goc.currentIndexChanged.connect(self._on_mdsd1_origin_changed)
-        self._register_input(60, self.cmb_mdsd1_ma_nguon_goc)
-
-        self.txt_mdsd1_nguon_goc_ct = QLineEdit()
-        self._register_input(61, self.txt_mdsd1_nguon_goc_ct)
-
-        f1.addRow("Loại đất (54):", self.cmb_mdsd1)
-        f1.addRow("Ký hiệu (55):", self.txt_mdsd1_kh)
-        f1.addRow("Diện tích (56):", self.txt_mdsd1_dt)
-        f1.addRow("Là SD chung (57):", self.cmb_mdsd1_sdc)
-        f1.addRow("Thời hạn SD (58):", self.txt_mdsd1_thoi_han)
-        f1.addRow("Nguồn gốc BĐ (59):", self.cmb_mdsd1_nguon_goc)
-        f1.addRow("Mã N.gốc (60):", self.cmb_mdsd1_ma_nguon_goc)
-        f1.addRow("N.gốc CT (61):", self.txt_mdsd1_nguon_goc_ct)
-        root_vbox.addWidget(grp1)
-
-        # --- MĐSD 2 (Cols 62-69) ---
-        grp2 = QGroupBox("Mục đích sử dụng 2 (Phụ - Cols 62-69)")
-        f2 = QFormLayout(grp2)
-        self._setup_form_layout(f2)
-
-        self.chk_has_mdsd2 = QCheckBox("Có Mục đích sử dụng 2")
-        self.chk_has_mdsd2.setStyleSheet("font-weight: bold; color: #1976d2;")
-        self.chk_has_mdsd2.toggled.connect(self._toggle_mdsd2_fields)
-        f2.addRow(self.chk_has_mdsd2)
-
-        self.cmb_mdsd2 = SearchableComboBox()
-        self._populate_land_types(self.cmb_mdsd2)
-        self.cmb_mdsd2.currentIndexChanged.connect(self._on_mdsd2_changed)
-        self._register_input(62, self.cmb_mdsd2)
-
-        self.txt_mdsd2_kh = QLineEdit()
-        self._register_input(63, self.txt_mdsd2_kh)
-
-        self.txt_mdsd2_dt = QLineEdit()
-        self._register_input(64, self.txt_mdsd2_dt)
-
-        self.cmb_mdsd2_sdc = SearchableComboBox()
-        self.cmb_mdsd2_sdc.addItem("[Không chọn]", "")
-        self.cmb_mdsd2_sdc.addItem("0 - Sử dụng riêng", "0")
-        self.cmb_mdsd2_sdc.addItem("1 - Sử dụng chung", "1")
-        self._register_input(65, self.cmb_mdsd2_sdc)
-
-        self.txt_mdsd2_thoi_han = QLineEdit()
-        self._register_input(66, self.txt_mdsd2_thoi_han)
-
-        self.cmb_mdsd2_nguon_goc = SearchableComboBox()
-        self._populate_land_use_origins(self.cmb_mdsd2_nguon_goc)
-        self.cmb_mdsd2_nguon_goc.currentIndexChanged.connect(self._on_mdsd2_origin_changed)
-        self._register_input(67, self.cmb_mdsd2_nguon_goc)
-
-        self.cmb_mdsd2_ma_nguon_goc = SearchableComboBox()
-        self._populate_land_use_origins(self.cmb_mdsd2_ma_nguon_goc)
-        self.cmb_mdsd2_ma_nguon_goc.currentIndexChanged.connect(self._on_mdsd2_origin_changed)
-        self._register_input(68, self.cmb_mdsd2_ma_nguon_goc)
-
-        self.txt_mdsd2_nguon_goc_ct = QLineEdit()
-        self._register_input(69, self.txt_mdsd2_nguon_goc_ct)
-
-        f2.addRow("Loại đất 2 (62):", self.cmb_mdsd2)
-        f2.addRow("Ký hiệu 2 (63):", self.txt_mdsd2_kh)
-        f2.addRow("Diện tích 2 (64):", self.txt_mdsd2_dt)
-        f2.addRow("Là SD chung (65):", self.cmb_mdsd2_sdc)
-        f2.addRow("Thời hạn 2 (66):", self.txt_mdsd2_thoi_han)
-        f2.addRow("Nguồn gốc BĐ 2 (67):", self.cmb_mdsd2_nguon_goc)
-        f2.addRow("Mã N.gốc 2 (68):", self.cmb_mdsd2_ma_nguon_goc)
-        f2.addRow("N.gốc CT 2 (69):", self.txt_mdsd2_nguon_goc_ct)
-        self._toggle_mdsd2_fields(False)
-        root_vbox.addWidget(grp2)
-
-        # --- MĐSD 3 (Cols 70-77) ---
-        grp3 = QGroupBox("Mục đích sử dụng 3 (Cols 70-77)")
-        f3 = QFormLayout(grp3)
-        self._setup_form_layout(f3)
-
-        self.chk_has_mdsd3 = QCheckBox("Có Mục đích sử dụng 3")
-        self.chk_has_mdsd3.setStyleSheet("font-weight: bold; color: #1976d2;")
-        self.chk_has_mdsd3.toggled.connect(self._toggle_mdsd3_fields)
-        f3.addRow(self.chk_has_mdsd3)
-
-        self.cmb_mdsd3 = SearchableComboBox()
-        self._populate_land_types(self.cmb_mdsd3)
-        self.cmb_mdsd3.currentIndexChanged.connect(self._on_mdsd3_changed)
-        self._register_input(70, self.cmb_mdsd3)
-
-        self.txt_mdsd3_kh = QLineEdit()
-        self._register_input(71, self.txt_mdsd3_kh)
-
-        self.txt_mdsd3_dt = QLineEdit()
-        self._register_input(72, self.txt_mdsd3_dt)
-
-        self.cmb_mdsd3_sdc = SearchableComboBox()
-        self.cmb_mdsd3_sdc.addItem("[Không chọn]", "")
-        self.cmb_mdsd3_sdc.addItem("0 - Sử dụng riêng", "0")
-        self.cmb_mdsd3_sdc.addItem("1 - Sử dụng chung", "1")
-        self._register_input(73, self.cmb_mdsd3_sdc)
-
-        self.txt_mdsd3_thoi_han = QLineEdit()
-        self._register_input(74, self.txt_mdsd3_thoi_han)
-
-        self.cmb_mdsd3_nguon_goc = SearchableComboBox()
-        self._populate_land_use_origins(self.cmb_mdsd3_nguon_goc)
-        self.cmb_mdsd3_nguon_goc.currentIndexChanged.connect(self._on_mdsd3_origin_changed)
-        self._register_input(75, self.cmb_mdsd3_nguon_goc)
-
-        self.cmb_mdsd3_ma_nguon_goc = SearchableComboBox()
-        self._populate_land_use_origins(self.cmb_mdsd3_ma_nguon_goc)
-        self.cmb_mdsd3_ma_nguon_goc.currentIndexChanged.connect(self._on_mdsd3_origin_changed)
-        self._register_input(76, self.cmb_mdsd3_ma_nguon_goc)
-
-        self.txt_mdsd3_nguon_goc_ct = QLineEdit()
-        self._register_input(77, self.txt_mdsd3_nguon_goc_ct)
-
-        f3.addRow("Loại đất 3 (70):", self.cmb_mdsd3)
-        f3.addRow("Ký hiệu 3 (71):", self.txt_mdsd3_kh)
-        f3.addRow("Diện tích 3 (72):", self.txt_mdsd3_dt)
-        f3.addRow("Là SD chung (73):", self.cmb_mdsd3_sdc)
-        f3.addRow("Thời hạn 3 (74):", self.txt_mdsd3_thoi_han)
-        f3.addRow("Nguồn gốc BĐ 3 (75):", self.cmb_mdsd3_nguon_goc)
-        f3.addRow("Mã N.gốc 3 (76):", self.cmb_mdsd3_ma_nguon_goc)
-        f3.addRow("N.gốc CT 3 (77):", self.txt_mdsd3_nguon_goc_ct)
-        self._toggle_mdsd3_fields(False)
-        root_vbox.addWidget(grp3)
-
-        # --- Địa chỉ thửa đất & Quản lý (Cols 89-98) ---
-        grp_addr = QGroupBox("Địa chỉ thửa đất & Đơn đăng ký (Cols 89-98)")
-        f_addr = QFormLayout(grp_addr)
-        self._setup_form_layout(f_addr)
-
-        self.chk_same_chu_address = QCheckBox("Địa chỉ thửa đất cùng địa chỉ Chủ sử dụng")
-        self.chk_same_chu_address.setChecked(True)
-        self.chk_same_chu_address.toggled.connect(self._toggle_thua_addr_sync)
-        f_addr.addRow(self.chk_same_chu_address)
-
-        self.txt_thua_sonha = QLineEdit()
-        self._register_input(89, self.txt_thua_sonha)
-
-        self.txt_thua_to = QLineEdit()
-        self.txt_thua_to.textChanged.connect(self._update_thua_full_address)
-        self._register_input(90, self.txt_thua_to)
-
-        self.cmb_thua_xa = SearchableComboBox()
-        self._populate_communes(self.cmb_thua_xa)
-        self.cmb_thua_xa.currentIndexChanged.connect(self._on_thua_commune_changed)
-        if self.cmb_thua_xa.lineEdit():
-            self.cmb_thua_xa.lineEdit().editingFinished.connect(self._on_thua_commune_changed)
-        self._register_input(91, self.cmb_thua_xa)
-
-        self.txt_thua_xa_huyen_tinh = QLineEdit()
-        self.txt_thua_xa_huyen_tinh.setPlaceholderText("Xã/Phường, Quận/Huyện, Tỉnh/TP")
-        self.txt_thua_xa_huyen_tinh.textChanged.connect(self._update_thua_full_address)
-        self._register_input(92, self.txt_thua_xa_huyen_tinh)
-
-        self.txt_thua_full_addr = QLineEdit()
-        self._register_input(94, self.txt_thua_full_addr)
-
-        # Nhóm Đơn & Quản lý (Cols 95-98)
-        self.chk_has_quan_ly = QCheckBox("Có thông tin Đơn & Quản lý (Cols 95-98)")
-        self.chk_has_quan_ly.toggled.connect(self._toggle_quan_ly_fields)
-        f_addr.addRow(self.chk_has_quan_ly)
-
-        self.txt_thua_ma_don = QLineEdit()
-        self._register_input(95, self.txt_thua_ma_don)
-
-        self.txt_thua_ngay_dangky = QLineEdit()
-        self._register_input(96, self.txt_thua_ngay_dangky)
-
-        self.cmb_hinh_thuc_sd = SearchableComboBox()
-        self.cmb_hinh_thuc_sd.addItem("[Không chọn]", "")
-        self.cmb_hinh_thuc_sd.addItem("0 - Sử dụng riêng", "0")
-        self.cmb_hinh_thuc_sd.addItem("1 - Sử dụng chung", "1")
-        self.cmb_hinh_thuc_sd.addItem("2 - Cả riêng và chung", "2")
-        self._register_input(97, self.cmb_hinh_thuc_sd)
-
-        self.cmb_trang_thai_thua = SearchableComboBox()
-        self.cmb_trang_thai_thua.addItem("[Không chọn]", "")
-        if self.master_data.land_status_list:
-            for code, name in self.master_data.land_status_list:
-                self.cmb_trang_thai_thua.addItem(f"{code} - {name}", code)
-        else:
-            self.cmb_trang_thai_thua.addItem("5 - Đã cấp GCN", "5")
-            self.cmb_trang_thai_thua.addItem("4 - Đã đăng ký, đủ điều kiện cấp GCN", "4")
-        self._register_input(98, self.cmb_trang_thai_thua)
-
-        f_addr.addRow("Số nhà (89):", self.txt_thua_sonha)
-        f_addr.addRow("Tổ/Khu (90):", self.txt_thua_to)
-        f_addr.addRow("Mã Xã (91):", self.cmb_thua_xa)
-        f_addr.addRow("Xã/Huyện (92):", self.txt_thua_xa_huyen_tinh)
-        f_addr.addRow("Đ/C đầy đủ (94):", self.txt_thua_full_addr)
-        f_addr.addRow("Mã đơn (95):", self.txt_thua_ma_don)
-        f_addr.addRow("Ngày ĐK (96):", self.txt_thua_ngay_dangky)
-        f_addr.addRow("Hình thức (97):", self.cmb_hinh_thuc_sd)
-        f_addr.addRow("Trạng thái (98):", self.cmb_trang_thai_thua)
-        self._toggle_quan_ly_fields(False)
-        root_vbox.addWidget(grp_addr)
-
-        return self._create_scroll_area(container)
-
     def _auto_sync_dt_phaply(self, text: str):
-        """Directly syncs Col 53 (Diện tích pháp lý) to Col 56 (Diện tích MĐSD 1)."""
         clean = text.strip()
-        self.txt_mdsd1_dt.setText(clean)
-
-    def _on_mdsd1_changed(self, idx: int):
-        code = self.cmb_mdsd1.currentData()
-        if code:
-            self.txt_mdsd1_kh.setText(str(code))
-
-    def _on_mdsd2_changed(self, idx: int):
-        code = self.cmb_mdsd2.currentData()
-        if code:
-            self.txt_mdsd2_kh.setText(str(code))
-
-    def _on_mdsd3_changed(self, idx: int):
-        code = self.cmb_mdsd3.currentData()
-        if code:
-            self.txt_mdsd3_kh.setText(str(code))
-
-    def _on_mdsd1_origin_changed(self, *args):
-        code59 = str(self.cmb_mdsd1_nguon_goc.currentData() or "")
-        code60 = str(self.cmb_mdsd1_ma_nguon_goc.currentData() or "")
-        name59 = self.master_data.land_use_origins_by_code.get(code59, "")
-        name60 = self.master_data.land_use_origins_by_code.get(code60, "")
-        parts = []
-        if name59:
-            parts.append(name59)
-        if name60:
-            parts.append(name60)
-        self.txt_mdsd1_nguon_goc_ct.setText(" ".join(parts))
-
-    def _on_mdsd2_origin_changed(self, *args):
-        code67 = str(self.cmb_mdsd2_nguon_goc.currentData() or "")
-        code68 = str(self.cmb_mdsd2_ma_nguon_goc.currentData() or "")
-        name67 = self.master_data.land_use_origins_by_code.get(code67, "")
-        name68 = self.master_data.land_use_origins_by_code.get(code68, "")
-        parts = []
-        if name67:
-            parts.append(name67)
-        if name68:
-            parts.append(name68)
-        self.txt_mdsd2_nguon_goc_ct.setText(" ".join(parts))
-
-    def _on_mdsd3_origin_changed(self, *args):
-        code75 = str(self.cmb_mdsd3_nguon_goc.currentData() or "")
-        code76 = str(self.cmb_mdsd3_ma_nguon_goc.currentData() or "")
-        name75 = self.master_data.land_use_origins_by_code.get(code75, "")
-        name76 = self.master_data.land_use_origins_by_code.get(code76, "")
-        parts = []
-        if name75:
-            parts.append(name75)
-        if name76:
-            parts.append(name76)
-        self.txt_mdsd3_nguon_goc_ct.setText(" ".join(parts))
-
-    def _toggle_mdsd2_fields(self, enabled: bool):
-        for col in range(62, 70):
-            if col in self.field_inputs:
-                self.field_inputs[col].setEnabled(enabled)
-
-    def _toggle_mdsd3_fields(self, enabled: bool):
-        for col in range(70, 78):
-            if col in self.field_inputs:
-                self.field_inputs[col].setEnabled(enabled)
-
-    def _toggle_quan_ly_fields(self, enabled: bool):
-        for col in (95, 96, 97, 98):
-            if col in self.field_inputs:
-                self.field_inputs[col].setEnabled(enabled)
-        if enabled and not self.txt_thua_ma_don.text():
-            self._auto_sync_ma_don(self.txt_serial.text())
-
-    def _toggle_thua_addr_sync(self, checked: bool):
-        for col in (89, 90, 91, 92, 94):
-            if col in self.field_inputs:
-                self.field_inputs[col].setEnabled(not checked)
-        if checked:
-            self._sync_thua_addr_from_chu()
-
-    def _sync_thua_addr_from_chu(self):
-        if self.chk_same_chu_address.isChecked():
-            self.txt_thua_sonha.setText(self.txt_chu_sonha.text())
-            self.txt_thua_to.setText(self.txt_chu_to.text())
-            self.cmb_thua_xa.setCurrentIndex(self.cmb_chu_xa.currentIndex())
-            self.txt_thua_xa_huyen_tinh.setText(self.txt_chu_xa_huyen_tinh.text())
-            self.txt_thua_full_addr.setText(self.txt_chu_full_addr.text())
-
-    def _on_thua_commune_changed(self, *args):
-        data = self.cmb_thua_xa.currentData()
-        if isinstance(data, CommuneInfo):
-            self.txt_thua_xa_huyen_tinh.setText(data.full_location)
-            self._update_thua_full_address()
-            # Auto fill measuring unit & completion date strictly from Col 91
-            self._auto_fill_measurement(data.name_3cap, data.district)
-        else:
-            text = self.cmb_thua_xa.currentText().strip()
-            if text:
-                for i in range(self.cmb_thua_xa.count()):
-                    c_info = self.cmb_thua_xa.itemData(i)
-                    if isinstance(c_info, CommuneInfo) and (c_info.code_3cap == text or c_info.name_3cap.lower() == text.lower()):
-                        self.txt_thua_xa_huyen_tinh.setText(c_info.full_location)
-                        self._update_thua_full_address()
-                        self._auto_fill_measurement(c_info.name_3cap, c_info.district)
-                        break
-
-    def _auto_fill_measurement(self, commune_name: str, district: str):
-        """Always updates Col 47 (Đơn vị đo) & Col 50 (Ngày hoàn thành) to the latest measurement data from Col 91."""
-        meas = self.master_data.find_measurement(commune_name, district)
-        if meas:
-            if meas.measuring_unit:
-                self.cmb_don_vi_do.setCurrentText(meas.measuring_unit)
-            if meas.completion_date:
-                self.txt_ngay_hoan_thanh.setText(meas.completion_date)
-
-    def _update_thua_full_address(self):
-        to = self.txt_thua_to.text().strip()
-        location = self.txt_thua_xa_huyen_tinh.text().strip()
-        full = f"{to}, {location}".strip(", ") if to else location
-        self.txt_thua_full_addr.setText(full)
-
-    # -------------------------------------------------------------
-    # TAB 5: NVTC & HẠN CHẾ (Cols 111-133)
-    # -------------------------------------------------------------
-    def _create_tab_nvtc(self) -> QWidget:
-        container = QWidget()
-        root_vbox = QVBoxLayout(container)
-        root_vbox.setContentsMargins(2, 2, 2, 2)
-        root_vbox.setSpacing(4)
-
-        # Hạn chế quyền (Cols 111-117)
-        grp_hc = QGroupBox("Hạn chế quyền sử dụng đất (Cols 111-117)")
-        f_hc = QFormLayout(grp_hc)
-        self._setup_form_layout(f_hc)
-
-        self.chk_has_han_che = QCheckBox("Có Hạn chế quyền")
-        self.chk_has_han_che.setStyleSheet("font-weight: bold; color: #e65100;")
-        self.chk_has_han_che.toggled.connect(self._toggle_han_che_fields)
-        f_hc.addRow(self.chk_has_han_che)
-
-        self.txt_hc_dt = QLineEdit()
-        self._register_input(111, self.txt_hc_dt)
-
-        self.txt_hc_hinh_thuc = QLineEdit()
-        self._register_input(112, self.txt_hc_hinh_thuc)
-
-        self.txt_hc_so_vb = QLineEdit()
-        self._register_input(113, self.txt_hc_so_vb)
-
-        self.txt_hc_ngay_bh = QLineEdit()
-        self._register_input(114, self.txt_hc_ngay_bh)
-
-        self.txt_hc_cq_bh = QLineEdit()
-        self._register_input(115, self.txt_hc_cq_bh)
-
-        self.txt_hc_noi_dung = QPlainTextEdit()
-        self.txt_hc_noi_dung.setMaximumHeight(50)
-        self._register_input(116, self.txt_hc_noi_dung)
-
-        self.cmb_hc_loai = SearchableComboBox()
-        self.cmb_hc_loai.addItem("[Không chọn]", "")
-        for r in self.master_data.restriction_types:
-            self.cmb_hc_loai.addItem(r, r)
-        self._register_input(117, self.cmb_hc_loai)
-
-        f_hc.addRow("DT hạn chế (111):", self.txt_hc_dt)
-        f_hc.addRow("Hình thức (112):", self.txt_hc_hinh_thuc)
-        f_hc.addRow("Số văn bản (113):", self.txt_hc_so_vb)
-        f_hc.addRow("Ngày BH (114):", self.txt_hc_ngay_bh)
-        f_hc.addRow("Cơ quan BH (115):", self.txt_hc_cq_bh)
-        f_hc.addRow("Nội dung (116):", self.txt_hc_noi_dung)
-        f_hc.addRow("Loại HC (117):", self.cmb_hc_loai)
-        self._toggle_han_che_fields(False)
-        root_vbox.addWidget(grp_hc)
-
-        # Nghĩa vụ tài chính (Cols 118-123)
-        grp_nvtc = QGroupBox("Nghĩa vụ tài chính (Cols 118-123)")
-        f_nvtc = QFormLayout(grp_nvtc)
-        self._setup_form_layout(f_nvtc)
-
-        self.chk_has_nvtc = QCheckBox("Có Nghĩa vụ tài chính")
-        self.chk_has_nvtc.setStyleSheet("font-weight: bold; color: #1976d2;")
-        self.chk_has_nvtc.toggled.connect(self._toggle_nvtc_fields)
-        f_nvtc.addRow(self.chk_has_nvtc)
-
-        self.cmb_nvtc_loai = SearchableComboBox()
-        self.cmb_nvtc_loai.addItem("[Không chọn]", "")
-        for n in self.master_data.nvtc_types:
-            self.cmb_nvtc_loai.addItem(n, n)
-        self.cmb_nvtc_loai.addItem("Lệ phí trước bạ;Thuế thu nhập từ chuyển nhượng bất động sản", "Lệ phí trước bạ;Thuế thu nhập từ chuyển nhượng bất động sản")
-        self._register_input(118, self.cmb_nvtc_loai)
-
-        self.txt_nvtc_tien = QLineEdit()
-        self.txt_nvtc_tien.setPlaceholderText("Ví dụ: 6000000;24000000")
-        self._register_input(119, self.txt_nvtc_tien)
-
-        self.txt_nvtc_tien_mg = QLineEdit()
-        self._register_input(120, self.txt_nvtc_tien_mg)
-
-        self.txt_nvtc_tien_no = QLineEdit()
-        self._register_input(121, self.txt_nvtc_tien_no)
-
-        self.txt_nvtc_ngay_bd = QLineEdit()
-        self._register_input(122, self.txt_nvtc_ngay_bd)
-
-        self.txt_nvtc_ngay_ht = QLineEdit()
-        self._register_input(123, self.txt_nvtc_ngay_ht)
-
-        f_nvtc.addRow("Loại NVTC (118):", self.cmb_nvtc_loai)
-        f_nvtc.addRow("Tổng tiền (119):", self.txt_nvtc_tien)
-        f_nvtc.addRow("Tiền MG (120):", self.txt_nvtc_tien_mg)
-        f_nvtc.addRow("Tiền nợ (121):", self.txt_nvtc_tien_no)
-        f_nvtc.addRow("Ngày BĐ (122):", self.txt_nvtc_ngay_bd)
-        f_nvtc.addRow("Ngày HT (123):", self.txt_nvtc_ngay_ht)
-        self._toggle_nvtc_fields(False)
-        root_vbox.addWidget(grp_nvtc)
-
-        # Miễn giảm NVTC
-        grp_mg = QGroupBox("Miễn giảm NVTC (Cols 124-128)")
-        f_mg = QFormLayout(grp_mg)
-        self._setup_form_layout(f_mg)
-        self.chk_has_mg = QCheckBox("Có Miễn giảm NVTC")
-        self.chk_has_mg.toggled.connect(self._toggle_mg_fields)
-        f_mg.addRow(self.chk_has_mg)
-
-        self.txt_mg_che_do = QLineEdit()
-        self._register_input(124, self.txt_mg_che_do)
-        self.txt_mg_tien = QLineEdit()
-        self._register_input(125, self.txt_mg_tien)
-        self.txt_mg_so_vb = QLineEdit()
-        self._register_input(126, self.txt_mg_so_vb)
-        self.txt_mg_ngay_bh = QLineEdit()
-        self._register_input(127, self.txt_mg_ngay_bh)
-        self.txt_mg_cq_bh = QLineEdit()
-        self._register_input(128, self.txt_mg_cq_bh)
-
-        f_mg.addRow("Chế độ MG (124):", self.txt_mg_che_do)
-        f_mg.addRow("Số tiền MG (125):", self.txt_mg_tien)
-        f_mg.addRow("Số văn bản (126):", self.txt_mg_so_vb)
-        f_mg.addRow("Ngày BH (127):", self.txt_mg_ngay_bh)
-        f_mg.addRow("Cơ quan BH (128):", self.txt_mg_cq_bh)
-        self._toggle_mg_fields(False)
-        root_vbox.addWidget(grp_mg)
-
-        # Nợ NVTC
-        grp_no = QGroupBox("Nợ NVTC (Cols 129-133)")
-        f_no = QFormLayout(grp_no)
-        self._setup_form_layout(f_no)
-        self.chk_has_no = QCheckBox("Có Nợ NVTC")
-        self.chk_has_no.toggled.connect(self._toggle_no_fields)
-        f_no.addRow(self.chk_has_no)
-
-        self.txt_no_loai = QLineEdit()
-        self._register_input(129, self.txt_no_loai)
-        self.txt_no_tien = QLineEdit()
-        self._register_input(130, self.txt_no_tien)
-        self.txt_no_so_vb = QLineEdit()
-        self._register_input(131, self.txt_no_so_vb)
-        self.txt_no_ngay_bh = QLineEdit()
-        self._register_input(132, self.txt_no_ngay_bh)
-        self.txt_no_cq_bh = QLineEdit()
-        self._register_input(133, self.txt_no_cq_bh)
-
-        f_no.addRow("Loại nợ (129):", self.txt_no_loai)
-        f_no.addRow("Số tiền nợ (130):", self.txt_no_tien)
-        f_no.addRow("Số văn bản (131):", self.txt_no_so_vb)
-        f_no.addRow("Ngày BH (132):", self.txt_no_ngay_bh)
-        f_no.addRow("Cơ quan BH (133):", self.txt_no_cq_bh)
-        self._toggle_no_fields(False)
-        root_vbox.addWidget(grp_no)
-
-        return self._create_scroll_area(container)
-
-    def _toggle_han_che_fields(self, enabled: bool):
-        for col in range(111, 118):
-            if col in self.field_inputs:
-                self.field_inputs[col].setEnabled(enabled)
-
-    def _toggle_nvtc_fields(self, enabled: bool):
-        for col in range(118, 124):
-            if col in self.field_inputs:
-                self.field_inputs[col].setEnabled(enabled)
-
-    def _toggle_mg_fields(self, enabled: bool):
-        for col in range(124, 129):
-            if col in self.field_inputs:
-                self.field_inputs[col].setEnabled(enabled)
-
-    def _toggle_no_fields(self, enabled: bool):
-        for col in range(129, 134):
-            if col in self.field_inputs:
-                self.field_inputs[col].setEnabled(enabled)
-
-    # -------------------------------------------------------------
-    # TAB 6: TÀI SẢN & LƯU KHO (Cols 134-186)
-    # -------------------------------------------------------------
-    def _create_tab_tai_san_va_khac(self) -> QWidget:
-        container = QWidget()
-        root_vbox = QVBoxLayout(container)
-        root_vbox.setContentsMargins(2, 2, 2, 2)
-        root_vbox.setSpacing(4)
-
-        # Nhà ở riêng lẻ (Cols 134-141)
-        grp_nha = QGroupBox("Nhà ở riêng lẻ (Cols 134-141)")
-        f_nha = QFormLayout(grp_nha)
-        self._setup_form_layout(f_nha)
-        self.chk_has_nha = QCheckBox("Có Nhà ở riêng lẻ")
-        self.chk_has_nha.toggled.connect(self._toggle_nha_fields)
-        f_nha.addRow(self.chk_has_nha)
-
-        self.txt_nha_dt_xd = QLineEdit()
-        self._register_input(134, self.txt_nha_dt_xd)
-        self.txt_nha_dt_san = QLineEdit()
-        self._register_input(135, self.txt_nha_dt_san)
-        self.txt_nha_ket_cau = QLineEdit()
-        self._register_input(136, self.txt_nha_ket_cau)
-        self.txt_nha_so_tang = QLineEdit()
-        self._register_input(137, self.txt_nha_so_tang)
-        self.txt_nha_cap_hang = SearchableComboBox()
-        self.txt_nha_cap_hang.addItem("[Không chọn]", "")
-        for r in self.master_data.rank_types:
-            self.txt_nha_cap_hang.addItem(r, r)
-        self._register_input(138, self.txt_nha_cap_hang)
-        self.txt_nha_ht_so_huu = QLineEdit()
-        self._register_input(139, self.txt_nha_ht_so_huu)
-        self.txt_nha_thoi_han = QLineEdit()
-        self._register_input(140, self.txt_nha_thoi_han)
-        self.txt_nha_dia_chi = QLineEdit()
-        self._register_input(141, self.txt_nha_dia_chi)
-
-        f_nha.addRow("DT xây dựng (134):", self.txt_nha_dt_xd)
-        f_nha.addRow("DT sàn (135):", self.txt_nha_dt_san)
-        f_nha.addRow("Kết cấu (136):", self.txt_nha_ket_cau)
-        f_nha.addRow("Số tầng (137):", self.txt_nha_so_tang)
-        f_nha.addRow("Cấp hạng (138):", self.txt_nha_cap_hang)
-        f_nha.addRow("Hình thức SH (139):", self.txt_nha_ht_so_huu)
-        f_nha.addRow("Thời hạn SH (140):", self.txt_nha_thoi_han)
-        f_nha.addRow("Địa chỉ nhà (141):", self.txt_nha_dia_chi)
-        self._toggle_nha_fields(False)
-        root_vbox.addWidget(grp_nha)
-
-        # Công trình xây dựng (Cols 142-154)
-        grp_ct = QGroupBox("Công trình xây dựng khác (Cols 142-154)")
-        f_ct = QFormLayout(grp_ct)
-        self._setup_form_layout(f_ct)
-        self.chk_has_ctxd = QCheckBox("Có Công trình xây dựng")
-        self.chk_has_ctxd.toggled.connect(self._toggle_ctxd_fields)
-        f_ct.addRow(self.chk_has_ctxd)
-
-        self.txt_ct_ten = QLineEdit()
-        self._register_input(142, self.txt_ct_ten)
-        self.txt_ct_dt_xd = QLineEdit()
-        self._register_input(143, self.txt_ct_dt_xd)
-        self.txt_ct_dt_san = QLineEdit()
-        self._register_input(144, self.txt_ct_dt_san)
-        self.txt_ct_ket_cau = QLineEdit()
-        self._register_input(145, self.txt_ct_ket_cau)
-        self.txt_ct_cong_nang = QLineEdit()
-        self._register_input(146, self.txt_ct_cong_nang)
-
-        f_ct.addRow("Tên công trình (142):", self.txt_ct_ten)
-        f_ct.addRow("DT xây dựng (143):", self.txt_ct_dt_xd)
-        f_ct.addRow("DT sàn (144):", self.txt_ct_dt_san)
-        f_ct.addRow("Kết cấu (145):", self.txt_ct_ket_cau)
-        f_ct.addRow("Công năng (146):", self.txt_ct_cong_nang)
-        self._toggle_ctxd_fields(False)
-        root_vbox.addWidget(grp_ct)
-
-        # Thửa đất cũ (Cols 169-178)
-        grp_cu = QGroupBox("Thông tin thửa đất cũ (Cols 169-178)")
-        f_cu = QFormLayout(grp_cu)
-        self._setup_form_layout(f_cu)
-        self.chk_has_thua_cu = QCheckBox("Có Thửa đất cũ")
-        self.chk_has_thua_cu.toggled.connect(self._toggle_thua_cu_fields)
-        f_cu.addRow(self.chk_has_thua_cu)
-
-        self.txt_cu_so_thua = QLineEdit()
-        self._register_input(169, self.txt_cu_so_thua)
-        self.txt_cu_so_to = QLineEdit()
-        self._register_input(170, self.txt_cu_so_to)
-        self.txt_cu_dt = QLineEdit()
-        self._register_input(171, self.txt_cu_dt)
-        self.txt_cu_loai_dat = QLineEdit()
-        self._register_input(172, self.txt_cu_loai_dat)
-
-        f_cu.addRow("Số thửa cũ (169):", self.txt_cu_so_thua)
-        f_cu.addRow("Số tờ cũ (170):", self.txt_cu_so_to)
-        f_cu.addRow("Diện tích cũ (171):", self.txt_cu_dt)
-        f_cu.addRow("Loại đất cũ (172):", self.txt_cu_loai_dat)
-        self._toggle_thua_cu_fields(False)
-        root_vbox.addWidget(grp_cu)
-
-        # Vị trí lưu kho & Hồ sơ quét (Cols 179-186)
-        grp_kho = QGroupBox("Vị trí lưu kho vật lý & HSQ (Cols 179-186)")
-        f_kho = QFormLayout(grp_kho)
-        self._setup_form_layout(f_kho)
-
-        self.txt_kho = QLineEdit()
-        self._register_input(179, self.txt_kho)
-        self.txt_gia = QLineEdit()
-        self._register_input(180, self.txt_gia)
-        self.txt_ke = QLineEdit()
-        self._register_input(181, self.txt_ke)
-        self.txt_ngan = QLineEdit()
-        self._register_input(182, self.txt_ngan)
-        self.txt_thu_muc_hsq = QLineEdit()
-        self._register_input(183, self.txt_thu_muc_hsq)
-        self.txt_dot_giao_nop = QLineEdit()
-        self._register_input(184, self.txt_dot_giao_nop)
-        self.txt_tt_kiem_tra = QLineEdit()
-        self._register_input(185, self.txt_tt_kiem_tra)
-        self.txt_ghi_chu_giao_nop = QLineEdit()
-        self._register_input(186, self.txt_ghi_chu_giao_nop)
-
-        f_kho.addRow("Kho (179):", self.txt_kho)
-        f_kho.addRow("Giá (180):", self.txt_gia)
-        f_kho.addRow("Kệ (181):", self.txt_ke)
-        f_kho.addRow("Ngăn (182):", self.txt_ngan)
-        f_kho.addRow("Thư mục HSQ (183):", self.txt_thu_muc_hsq)
-        f_kho.addRow("Đợt nộp (184):", self.txt_dot_giao_nop)
-        f_kho.addRow("TT kiểm tra (185):", self.txt_tt_kiem_tra)
-        f_kho.addRow("Ghi chú (186):", self.txt_ghi_chu_giao_nop)
-        root_vbox.addWidget(grp_kho)
-
-        return self._create_scroll_area(container)
-
-    def _toggle_nha_fields(self, enabled: bool):
-        for col in range(134, 142):
-            if col in self.field_inputs:
-                self.field_inputs[col].setEnabled(enabled)
-
-    def _toggle_ctxd_fields(self, enabled: bool):
-        for col in range(142, 147):
-            if col in self.field_inputs:
-                self.field_inputs[col].setEnabled(enabled)
-
-    def _toggle_thua_cu_fields(self, enabled: bool):
-        for col in range(169, 173):
-            if col in self.field_inputs:
-                self.field_inputs[col].setEnabled(enabled)
-
-    # -------------------------------------------------------------
-    # HELPER POPULATORS & COMMUNE ADDR UPDATERS
-    # -------------------------------------------------------------
-    def _populate_communes(self, combo: QComboBox):
-        combo.clear()
-        combo.addItem("[Không chọn]", None)
-        for c in self.master_data.communes:
-            disp_text = f"{c.code_3cap} - {c.name_3cap}, {c.district}"
-            combo.addItem(disp_text, c)
-
-    def _populate_land_types(self, combo: QComboBox):
-        combo.clear()
-        combo.addItem("[Không chọn]", "")
-        for lt in self.master_data.land_types:
-            disp_text = f"{lt.code} - {lt.name}"
-            combo.addItem(disp_text, lt.code)
-
-    def _populate_land_use_origins(self, combo: QComboBox):
-        combo.clear()
-        combo.addItem("[Không chọn]", "")
-        for code, name in self.master_data.land_use_origins:
-            disp_text = f"{code} - {name}"
-            combo.addItem(disp_text, code)
+        if clean:
+            if not self.txt_mdsd1_dt.text() or self.txt_mdsd1_dt.text() == clean:
+                self.txt_mdsd1_dt.setText(clean)
 
     def _on_chu_commune_changed(self, idx: int):
         data = self.cmb_chu_xa.currentData()
@@ -1526,20 +1548,6 @@ class AttributeFormWidget(QWidget):
             self._update_chu_full_address()
             if self.chk_has_spouse.isChecked() and not self.txt_vo_xa_huyen_tinh.text():
                 self.cmb_vo_xa.setCurrentIndex(idx)
-            if self.chk_same_chu_address.isChecked():
-                self.cmb_thua_xa.setCurrentIndex(idx)
-
-    def _update_chu_full_address(self):
-        to = self.txt_chu_to.text().strip()
-        location = self.txt_chu_xa_huyen_tinh.text().strip()
-        full = f"{to}, {location}".strip(", ") if to else location
-        self.txt_chu_full_addr.setText(full)
-        if self.chk_same_chu_address.isChecked():
-            self._sync_thua_addr_from_chu()
-
-    def _on_chu_full_addr_changed(self, text: str):
-        if self.chk_same_chu_address.isChecked():
-            self.txt_thua_full_addr.setText(text)
 
     def _on_vo_commune_changed(self, idx: int):
         data = self.cmb_vo_xa.currentData()
@@ -1547,17 +1555,52 @@ class AttributeFormWidget(QWidget):
             self.txt_vo_xa_huyen_tinh.setText(data.full_location)
             self._update_vo_full_address()
 
+    def _update_chu_full_address(self):
+        to = self.txt_chu_to.text().strip()
+        location = self.txt_chu_xa_huyen_tinh.text().strip()
+        full = f"{to}, {location}".strip(", ") if to else location
+        self.txt_chu_full_addr.setText(full)
+
     def _update_vo_full_address(self):
         to = self.txt_vo_to.text().strip()
         location = self.txt_vo_xa_huyen_tinh.text().strip()
         full = f"{to}, {location}".strip(", ") if to else location
         self.txt_vo_full_addr.setText(full)
 
+    def _on_mdsd1_nguongoc_changed(self, *args):
+        parts = []
+        code1 = self.cmb_mdsd1_nguongoc.currentData()
+        code2 = self.cmb_mdsd1_ma_nguon_goc.currentData()
+        if code1 and code1 in self.master_data.land_use_origins_by_code:
+            parts.append(self.master_data.land_use_origins_by_code[code1])
+        if code2 and code2 in self.master_data.land_use_origins_by_code:
+            parts.append(self.master_data.land_use_origins_by_code[code2])
+        self.txt_mdsd1_nguongoc_chitiet.setText(" ".join(parts))
+
+    def _on_mdsd2_nguongoc_changed(self, *args):
+        parts = []
+        code1 = self.cmb_mdsd2_nguongoc.currentData()
+        code2 = self.cmb_mdsd2_ma_nguon_goc.currentData()
+        if code1 and code1 in self.master_data.land_use_origins_by_code:
+            parts.append(self.master_data.land_use_origins_by_code[code1])
+        if code2 and code2 in self.master_data.land_use_origins_by_code:
+            parts.append(self.master_data.land_use_origins_by_code[code2])
+        self.txt_mdsd2_nguongoc_chitiet.setText(" ".join(parts))
+
+    def _on_mdsd3_nguongoc_changed(self, *args):
+        parts = []
+        code1 = self.cmb_mdsd3_nguongoc.currentData()
+        code2 = self.cmb_mdsd3_ma_nguon_goc.currentData()
+        if code1 and code1 in self.master_data.land_use_origins_by_code:
+            parts.append(self.master_data.land_use_origins_by_code[code1])
+        if code2 and code2 in self.master_data.land_use_origins_by_code:
+            parts.append(self.master_data.land_use_origins_by_code[code2])
+        self.txt_mdsd3_nguongoc_chitiet.setText(" ".join(parts))
+
     # -------------------------------------------------------------
-    # READ / WRITE FORM DATA (Directly from visible inputs)
+    # GET & LOAD FORM DATA
     # -------------------------------------------------------------
     def get_attr_dict(self) -> Dict[int, Any]:
-        """Collects values directly from all visible inputs in the form."""
         data: Dict[int, Any] = {}
 
         for col, widget in self.field_inputs.items():
@@ -1593,7 +1636,7 @@ class AttributeFormWidget(QWidget):
             elif isinstance(widget, QCheckBox):
                 data[col] = "1" if widget.isChecked() else "0"
 
-        # Gender conversion: Nam -> 1, Nữ -> 0
+        # Gender conversion
         if 10 in data:
             if data[10] in ("Nam", "1"):
                 data[10] = "1"
@@ -1609,219 +1652,167 @@ class AttributeFormWidget(QWidget):
             else:
                 data[27] = ""
 
-        # Specific field cleans
-        if not self.chk_has_spouse.isChecked():
+        # Specific unchecked group clears
+        if hasattr(self, 'chk_has_spouse') and not self.chk_has_spouse.isChecked():
             for c in range(26, 43):
                 data[c] = ""
 
-        if not self.chk_has_mdsd2.isChecked():
+        if hasattr(self, 'chk_has_mdsd2') and not self.chk_has_mdsd2.isChecked():
             for c in range(62, 70):
                 data[c] = ""
 
-        if not self.chk_has_mdsd3.isChecked():
+        if hasattr(self, 'chk_has_mdsd3') and not self.chk_has_mdsd3.isChecked():
             for c in range(70, 78):
                 data[c] = ""
 
-        if not self.chk_has_quan_ly.isChecked():
-            for c in (95, 96, 97, 98):
+        if hasattr(self, 'chk_has_quan_ly') and not self.chk_has_quan_ly.isChecked():
+            for c in (96, 97, 98):
                 data[c] = ""
 
-        if not self.chk_has_han_che.isChecked():
+        if hasattr(self, 'chk_has_han_che') and not self.chk_has_han_che.isChecked():
             for c in range(111, 118):
                 data[c] = ""
 
-        if not self.chk_has_nvtc.isChecked():
+        if hasattr(self, 'chk_has_nvtc') and not self.chk_has_nvtc.isChecked():
             for c in range(118, 124):
                 data[c] = ""
 
-        if not self.chk_has_mg.isChecked():
+        if hasattr(self, 'chk_has_mg') and not self.chk_has_mg.isChecked():
             for c in range(124, 129):
                 data[c] = ""
 
-        if not self.chk_has_no.isChecked():
+        if hasattr(self, 'chk_has_no') and not self.chk_has_no.isChecked():
             for c in range(129, 134):
                 data[c] = ""
 
-        if not self.chk_has_nha.isChecked():
+        if hasattr(self, 'chk_has_nha') and not self.chk_has_nha.isChecked():
             for c in range(134, 142):
                 data[c] = ""
 
-        if not self.chk_has_ctxd.isChecked():
+        if hasattr(self, 'chk_has_ctxd') and not self.chk_has_ctxd.isChecked():
             for c in range(142, 155):
                 data[c] = ""
 
-        if not self.chk_has_thua_cu.isChecked():
+        if hasattr(self, 'chk_has_ctngam') and not self.chk_has_ctngam.isChecked():
+            for c in range(155, 163):
+                data[c] = ""
+
+        if hasattr(self, 'chk_has_cay') and not self.chk_has_cay.isChecked():
+            for c in range(163, 169):
+                data[c] = ""
+
+        if hasattr(self, 'chk_has_thua_cu') and not self.chk_has_thua_cu.isChecked():
             for c in range(169, 179):
                 data[c] = ""
 
         return data
 
     def load_attr_dict(self, data: Dict[int, Any], serial: str):
-        """Populates form directly from dictionary and serial name."""
-        self.txt_serial.setText(serial)
-
         for col, widget in self.field_inputs.items():
-            val = str(data.get(col, "") or "")
+            val = str(data.get(col, "") or "").strip()
+            if col == 2 and not val and serial:
+                val = serial
 
             if isinstance(widget, QLineEdit):
-                if not val or (col == 45 and val.strip() in ("500", "500.0", "1/500", "1:500")):
-                    if col == 48:
-                        widget.setText("Toàn đạc điện tử")
-                    elif col == 49:
-                        widget.setText("Cao")
-                    elif col == 45:
-                        widget.setText("1")
-                    elif col == 58:
-                        widget.setText("Lâu dài")
-                    else:
-                        widget.setText("")
-                else:
-                    widget.setText(val)
+                widget.setText(val)
             elif isinstance(widget, QPlainTextEdit):
                 widget.setPlainText(val)
             elif isinstance(widget, QComboBox):
                 if not val:
-                    if col in (25, 42):
-                        widget.setCurrentText("Viet Nam")
-                    elif col in (24, 41):
-                        widget.setCurrentText("Không rõ")
-                    elif col == 46:
-                        widget.setCurrentText("1 - Bản đồ địa chính (VN2000)")
-                    elif col == 51:
-                        widget.setCurrentText("A - Đã cấp GCN, không có tài sản")
-                    elif col == 57:
-                        widget.setCurrentText("0 - Sử dụng riêng")
-                    elif col == 99:
-                        widget.setCurrentText("Giấy chứng nhận QSDĐ & QSHNƠ và TSKGLVĐ theo NĐ 88/NĐ-CP")
-                    elif col in (16, 33):
-                        widget.setCurrentText("Cục Cảnh sát quản lý hành chính về trật tự xã hội")
+                    widget.setCurrentIndex(0)
+                    continue
+
+                if col == 93:
+                    # Searchable commune by location text or code
+                    found = False
+                    for i in range(widget.count()):
+                        c_data = str(widget.itemData(i) or "")
+                        c_text = widget.itemText(i)
+                        if val.lower() in c_data.lower() or val.lower() in c_text.lower() or c_data == val:
+                            widget.setCurrentIndex(i)
+                            found = True
+                            break
+                    if not found:
+                        widget.setEditText(val)
+
+                elif col in (20, 37):
+                    match_c = self.master_data.get_commune(val)
+                    if match_c:
+                        disp = f"{match_c.code_3cap} - {match_c.name_3cap}, {match_c.district}"
+                        widget.setCurrentText(disp)
+                    else:
+                        widget.setCurrentText(val)
+                elif col in (54, 62, 70, 172):
+                    match_lt = self.master_data.get_land_type(val)
+                    if match_lt:
+                        disp = f"{match_lt.code} - {match_lt.name}"
+                        widget.setCurrentText(disp)
+                    else:
+                        widget.setCurrentText(val)
+                elif col in (59, 60, 67, 68, 75, 76, 174):
+                    if val in self.master_data.land_use_origins_by_code:
+                        disp = f"{val} - {self.master_data.land_use_origins_by_code[val]}"
+                        widget.setCurrentText(disp)
+                    else:
+                        widget.setCurrentText(val)
+                elif col in (10, 27):
+                    if val in ("1", "Nam"):
+                        widget.setCurrentText("Nam")
+                    elif val in ("0", "Nữ"):
+                        widget.setCurrentText("Nữ")
                     else:
                         widget.setCurrentIndex(0)
-                    continue
-
-                if col in (25, 42) and val.lower() in ("viet nam", "việt nam", "vietnam"):
-                    widget.setCurrentText("Viet Nam")
-                    continue
-
-                if col in [20, 37, 91]:
-                    matched = False
-                    for i in range(widget.count()):
-                        c_info = widget.itemData(i)
-                        if isinstance(c_info, CommuneInfo) and c_info.code_3cap == val:
-                            widget.setCurrentIndex(i)
-                            matched = True
-                            break
-                    if not matched:
-                        widget.setCurrentText(val)
-                elif col in [6, 7, 8, 10, 13, 27, 30, 46, 51, 54, 57, 59, 60, 62, 65, 67, 68, 70, 73, 75, 76, 97, 98, 104, 105, 117]:
-                    # Normalize ID type abbreviations
-                    if col in (13, 30):
-                        if "chứng minh" in val.lower():
-                            val = "CMND"
-                        elif "căn cước" in val.lower():
-                            val = "CCCD"
-                    matched = False
-                    for i in range(widget.count()):
-                        item_d = str(widget.itemData(i) or "")
-                        if item_d.lower() == val.lower():
-                            widget.setCurrentIndex(i)
-                            matched = True
-                            break
-                    if not matched:
-                        widget.setCurrentText(val)
                 else:
-                    widget.setCurrentText(val)
+                    found = False
+                    for i in range(widget.count()):
+                        c_data = widget.itemData(i)
+                        c_text = widget.itemText(i)
+                        if c_data == val or (c_data and str(c_data) == str(val)):
+                            widget.setCurrentIndex(i)
+                            found = True
+                            break
+                        if c_text.startswith(f"{val} - ") or c_text == val:
+                            widget.setCurrentIndex(i)
+                            found = True
+                            break
+                    if not found:
+                        widget.setEditText(val)
 
-        # Spouse toggle
-        if data.get(26):
-            self.chk_has_spouse.setChecked(True)
-            self._toggle_spouse_fields(True)
-        else:
-            self.chk_has_spouse.setChecked(False)
-            self._toggle_spouse_fields(False)
+            elif isinstance(widget, QCheckBox):
+                widget.setChecked(val in ("1", "True", "true", "x", "X"))
 
-        # MĐSD 2 toggle
-        if data.get(62) or data.get(64):
-            self.chk_has_mdsd2.setChecked(True)
-            self._toggle_mdsd2_fields(True)
-        else:
-            self.chk_has_mdsd2.setChecked(False)
-            self._toggle_mdsd2_fields(False)
+        # Check sub-groups activation
+        has_vo = any(str(data.get(c, "") or "").strip() for c in range(26, 43))
+        self.chk_has_spouse.setChecked(has_vo)
 
-        # MĐSD 3 toggle
-        if data.get(70) or data.get(72):
-            self.chk_has_mdsd3.setChecked(True)
-            self._toggle_mdsd3_fields(True)
-        else:
-            self.chk_has_mdsd3.setChecked(False)
-            self._toggle_mdsd3_fields(False)
+        has_hc = any(str(data.get(c, "") or "").strip() for c in range(111, 118))
+        self.chk_has_han_che.setChecked(has_hc)
 
-        # Quản lý toggle
-        if data.get(95) or data.get(96) or data.get(97) or data.get(98):
-            self.chk_has_quan_ly.setChecked(True)
-            self._toggle_quan_ly_fields(True)
-        else:
-            self.chk_has_quan_ly.setChecked(False)
-            self._toggle_quan_ly_fields(False)
+        has_nvtc = any(str(data.get(c, "") or "").strip() for c in range(118, 124))
+        self.chk_has_nvtc.setChecked(has_nvtc)
 
-        # Hạn chế toggle
-        if data.get(111) or data.get(116) or data.get(117):
-            self.chk_has_han_che.setChecked(True)
-            self._toggle_han_che_fields(True)
-        else:
-            self.chk_has_han_che.setChecked(False)
-            self._toggle_han_che_fields(False)
+        has_mg = any(str(data.get(c, "") or "").strip() for c in range(124, 129))
+        self.chk_has_mg.setChecked(has_mg)
 
-        # NVTC toggle
-        if data.get(118) or data.get(119):
-            self.chk_has_nvtc.setChecked(True)
-            self._toggle_nvtc_fields(True)
-        else:
-            self.chk_has_nvtc.setChecked(False)
-            self._toggle_nvtc_fields(False)
+        has_no = any(str(data.get(c, "") or "").strip() for c in range(129, 134))
+        self.chk_has_no.setChecked(has_no)
 
-        # MG toggle
-        if data.get(124) or data.get(125):
-            self.chk_has_mg.setChecked(True)
-            self._toggle_mg_fields(True)
-        else:
-            self.chk_has_mg.setChecked(False)
-            self._toggle_mg_fields(False)
+        has_nha = any(str(data.get(c, "") or "").strip() for c in range(134, 142))
+        self.chk_has_nha.setChecked(has_nha)
 
-        # Nợ toggle
-        if data.get(129) or data.get(130):
-            self.chk_has_no.setChecked(True)
-            self._toggle_no_fields(True)
-        else:
-            self.chk_has_no.setChecked(False)
-            self._toggle_no_fields(False)
+        has_ctxd = any(str(data.get(c, "") or "").strip() for c in range(142, 155))
+        self.chk_has_ctxd.setChecked(has_ctxd)
 
-        # Nhà toggle
-        if data.get(134) or data.get(135):
-            self.chk_has_nha.setChecked(True)
-            self._toggle_nha_fields(True)
-        else:
-            self.chk_has_nha.setChecked(False)
-            self._toggle_nha_fields(False)
+        has_ctngam = any(str(data.get(c, "") or "").strip() for c in range(155, 163))
+        self.chk_has_ctngam.setChecked(has_ctngam)
 
-        # CTXD toggle
-        if data.get(142) or data.get(143):
-            self.chk_has_ctxd.setChecked(True)
-            self._toggle_ctxd_fields(True)
-        else:
-            self.chk_has_ctxd.setChecked(False)
-            self._toggle_ctxd_fields(False)
+        has_cay = any(str(data.get(c, "") or "").strip() for c in range(163, 169))
+        self.chk_has_cay.setChecked(has_cay)
 
-        # Thửa cũ toggle
-        if data.get(169) or data.get(170):
-            self.chk_has_thua_cu.setChecked(True)
-            self._toggle_thua_cu_fields(True)
-        else:
-            self.chk_has_thua_cu.setChecked(False)
-            self._toggle_thua_cu_fields(False)
+        has_thua_cu = any(str(data.get(c, "") or "").strip() for c in range(169, 179))
+        self.chk_has_thua_cu.setChecked(has_thua_cu)
 
-        # Explicit overrides for 47 and 50 if present in data
-        if data.get(47):
-            self.cmb_don_vi_do.setCurrentText(str(data.get(47)))
-        if data.get(50):
-            self.txt_ngay_hoan_thanh.setText(str(data.get(50)))
+        # Always focus on Số thửa (43) on load
+        self.txt_thua_so.setFocus()
+        self.active_input_widget = self.txt_thua_so
+        self._highlight_active_field(self.txt_thua_so, 43)

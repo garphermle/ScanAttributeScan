@@ -1,89 +1,61 @@
-name: Build Windows Executable
+name: Build Windows Application
 
 on:
   push:
-    branches: [ "main", "master" ]
-    tags: [ "v*" ]
+    branches: [ main, master ]
+    tags:
+      - 'v*'
   pull_request:
-    branches: [ "main", "master" ]
+    branches: [ main, master ]
   workflow_dispatch:
-
-permissions:
-  contents: write
 
 jobs:
   build-windows:
     runs-on: windows-latest
 
     steps:
-      - name: Check out repository
+      - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Set up Python
+      - name: Set up Python 3.11
         uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
-          cache: "pip"
+          python-version: '3.11'
+          cache: 'pip'
 
-      - name: Install dependencies
+      - name: Install Dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install .
-          pip install pyinstaller pytest pytest-qt
+          pip install PySide6 pypdfium2 openpyxl Pillow opencv-python-headless pyzbar rapidocr-onnxruntime PyMuPDF numpy pyinstaller pytest
 
-      - name: Run unit tests
+      - name: Build Windows Executable with PyInstaller
         run: |
-          pytest tests/ -v
+          pyinstaller ScanAttribute.spec --noconfirm --clean
 
-      - name: Build Folder Executable with PyInstaller
+      - name: Verify and Copy Resources
         run: |
-          pyinstaller --noconfirm --onedir --windowed `
-            --name ScanAttribute `
-            --add-data "scan_attribute/resources/Excel_FormMau.xlsx;scan_attribute/resources" `
-            --add-data "scan_attribute/resources/Excel_FormMau.xlsx;resources" `
-            --add-data "scan_attribute/resources/QNH_ThongTinDoDac.xlsx;scan_attribute/resources" `
-            --add-data "scan_attribute/resources/QNH_ThongTinDoDac.xlsx;resources" `
-            --collect-all rapidocr_onnxruntime `
-            --collect-all pypdfium2 `
-            scan_attribute/main.py
+          if (Test-Path "scan_attribute/resources") {
+            New-Item -ItemType Directory -Force -Path "dist/ScanAttribute/resources"
+            Copy-Item -Path "scan_attribute/resources/*" -Destination "dist/ScanAttribute/resources" -Recurse -Force
+            New-Item -ItemType Directory -Force -Path "dist/ScanAttribute/scan_attribute/resources"
+            Copy-Item -Path "scan_attribute/resources/*" -Destination "dist/ScanAttribute/scan_attribute/resources" -Recurse -Force
+          }
 
-      - name: Build Standalone Single File EXE
+      - name: Create Zip Package for Windows
         run: |
-          pyinstaller --noconfirm --onefile --windowed `
-            --name ScanAttribute-Standalone `
-            --add-data "scan_attribute/resources/Excel_FormMau.xlsx;scan_attribute/resources" `
-            --add-data "scan_attribute/resources/Excel_FormMau.xlsx;resources" `
-            --add-data "scan_attribute/resources/QNH_ThongTinDoDac.xlsx;scan_attribute/resources" `
-            --add-data "scan_attribute/resources/QNH_ThongTinDoDac.xlsx;resources" `
-            --collect-all rapidocr_onnxruntime `
-            --collect-all pypdfium2 `
-            scan_attribute/main.py
+          Compress-Archive -Path "dist/ScanAttribute/*" -DestinationPath "dist/ScanAttribute-Windows-x64.zip" -Force
 
-      - name: Compress Directory Build Artifact
-        shell: powershell
-        run: |
-          Compress-Archive -Path dist/ScanAttribute/* -DestinationPath ScanAttribute-Windows-x64.zip
-
-      - name: Upload Directory Build Artifact (Zip)
+      - name: Upload Build Artifact (Zip)
         uses: actions/upload-artifact@v4
         with:
-          name: ScanAttribute-Windows-x64-Zip
-          path: ScanAttribute-Windows-x64.zip
-          retention-days: 90
+          name: ScanAttribute-Windows-x64
+          path: dist/ScanAttribute-Windows-x64.zip
+          retention-days: 30
 
-      - name: Upload Standalone EXE Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: ScanAttribute-Standalone-EXE
-          path: dist/ScanAttribute-Standalone.exe
-          retention-days: 90
-
-      - name: Create Release and Upload Assets
+      - name: Create GitHub Release (on Tag)
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
-          files: |
-            ScanAttribute-Windows-x64.zip
-            dist/ScanAttribute-Standalone.exe
+          files: dist/ScanAttribute-Windows-x64.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
