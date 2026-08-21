@@ -285,17 +285,18 @@ class AttributeFormWidget(QWidget):
         r_xa.addWidget(self.cmb_thua_xa, stretch=1)
         focus_layout.addLayout(r_xa)
 
-        # Row 5: Diện tích (112)
+        # Row 5: Diện tích (52)
         r_dt = QHBoxLayout()
-        lbl_dt = QLabel("📐 Diện tích (112):")
+        lbl_dt = QLabel("📐 Diện tích (52):")
         lbl_dt.setProperty("class", "focus-label")
         lbl_dt.setFixedWidth(160)
-        self.txt_hc_dt = QLineEdit()
-        self.txt_hc_dt.setProperty("class", "focus-input")
-        self.txt_hc_dt.setPlaceholderText("Ví dụ: 120.5")
-        self._register_input(112, self.txt_hc_dt)
+        self.txt_dt_bando = QLineEdit()
+        self.txt_dt_bando.setProperty("class", "focus-input")
+        self.txt_dt_bando.setPlaceholderText("Ví dụ: 120.5 (m2)")
+        self.txt_dt_bando.textChanged.connect(self._auto_sync_dt_bando)
+        self._register_input(52, self.txt_dt_bando)
         r_dt.addWidget(lbl_dt)
-        r_dt.addWidget(self.txt_hc_dt, stretch=1)
+        r_dt.addWidget(self.txt_dt_bando, stretch=1)
         focus_layout.addLayout(r_dt)
 
         # Row 6: Ghi chú trang 2 (110)
@@ -372,11 +373,11 @@ class AttributeFormWidget(QWidget):
         btn_row.addWidget(self.btn_save)
         root_layout.addLayout(btn_row)
 
-        # Tab Order: 43 -> 44 -> 93 -> 112 -> 110 -> Save
+        # Tab Order: 43 -> 44 -> 93 -> 52 -> 110 -> Save
         QWidget.setTabOrder(self.txt_thua_so, self.txt_thua_to)
         QWidget.setTabOrder(self.txt_thua_to, self.cmb_thua_xa)
-        QWidget.setTabOrder(self.cmb_thua_xa, self.txt_hc_dt)
-        QWidget.setTabOrder(self.txt_hc_dt, self.txt_ghi_chu_t2)
+        QWidget.setTabOrder(self.cmb_thua_xa, self.txt_dt_bando)
+        QWidget.setTabOrder(self.txt_dt_bando, self.txt_ghi_chu_t2)
         QWidget.setTabOrder(self.txt_ghi_chu_t2, self.btn_save)
 
         self.active_input_widget = self.txt_thua_so
@@ -907,8 +908,9 @@ class AttributeFormWidget(QWidget):
         self._register_input(51, self.cmb_trang_thai)
         self.cmb_phan_loai_thua = self.cmb_trang_thai  # Alias
 
-        self.txt_dt_bando = QLineEdit("")
-        self._register_input(52, self.txt_dt_bando)
+        self.txt_dt_bando_tab = QLineEdit("")
+        self.txt_dt_bando.textChanged.connect(self.txt_dt_bando_tab.setText)
+        self.txt_dt_bando_tab.textChanged.connect(self.txt_dt_bando.setText)
         self.txt_dt_phaply = QLineEdit("")
         self.txt_dt_phaply.textChanged.connect(self._auto_sync_dt_phaply)
         self._register_input(53, self.txt_dt_phaply)
@@ -1112,9 +1114,8 @@ class AttributeFormWidget(QWidget):
             self.cmb_hc_loai.addItem(r_code, r_code)
         self._register_input(111, self.cmb_hc_loai)
 
-        self.txt_hc_dt_tab = QLineEdit("")
-        self.txt_hc_dt.textChanged.connect(self.txt_hc_dt_tab.setText)
-        self.txt_hc_dt_tab.textChanged.connect(self.txt_hc_dt.setText)
+        self.txt_hc_dt = QLineEdit("")
+        self._register_input(112, self.txt_hc_dt)
         self.txt_hc_noidung = QLineEdit("")
         self._register_input(113, self.txt_hc_noidung)
         self.txt_hc_sovb = QLineEdit("")
@@ -1127,7 +1128,7 @@ class AttributeFormWidget(QWidget):
         self._register_input(117, self.chk_hc_1phan)
 
         fhc.addRow("Loại hạn chế (111):", self.cmb_hc_loai)
-        fhc.addRow("Diện tích (112):", self.txt_hc_dt_tab)
+        fhc.addRow("Diện tích (112):", self.txt_hc_dt)
         fhc.addRow("Nội dung (113):", self.txt_hc_noidung)
         fhc.addRow("Số văn bản (114):", self.txt_hc_sovb)
         fhc.addRow("Ngày ban hành (115):", self.txt_hc_ngaybh)
@@ -1548,6 +1549,14 @@ class AttributeFormWidget(QWidget):
             year_part = clean[-4:]
             if year_part.isdigit() and (not self.txt_vo_nam_sinh.text() or len(self.txt_vo_nam_sinh.text()) != 4):
                 self.txt_vo_nam_sinh.setText(year_part)
+
+    def _auto_sync_dt_bando(self, text: str):
+        clean = text.strip()
+        if clean:
+            if hasattr(self, 'txt_dt_phaply') and (not self.txt_dt_phaply.text() or self.txt_dt_phaply.text() == clean):
+                self.txt_dt_phaply.setText(clean)
+            if hasattr(self, 'txt_mdsd1_dt') and (not self.txt_mdsd1_dt.text() or self.txt_mdsd1_dt.text() == clean):
+                self.txt_mdsd1_dt.setText(clean)
 
     def _auto_sync_dt_phaply(self, text: str):
         clean = text.strip()
