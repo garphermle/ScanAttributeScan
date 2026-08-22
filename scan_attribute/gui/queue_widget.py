@@ -483,20 +483,26 @@ class QueueWidget(QWidget):
             matching_pdfs = self.pdf_indexer.find_pdfs_for_serial(serial)
             pdf_count = len(matching_pdfs)
 
+            note_a = str(item_data.get("note_a", "") or "").strip()
+
             if is_done:
                 icon = "✅"
-                info_text = f"Dòng {row_idx} (Đã nhập: {owner_name or 'OK'})"
+                note_tag = f" [{note_a}]" if note_a else ""
+                info_text = f"Dòng {row_idx}{note_tag} (Đã nhập: {owner_name or 'OK'})"
                 color = QColor("#2e7d32")
             else:
                 icon = "⏳"
+                note_tag = f" [{note_a}]" if note_a else ""
                 if pdf_count > 0:
-                    info_text = f"Dòng {row_idx} ({pdf_count} PDF)"
+                    info_text = f"Dòng {row_idx}{note_tag} ({pdf_count} PDF)"
                     color = QColor("#e65100")
                 else:
-                    info_text = f"Dòng {row_idx} (Chưa thấy PDF)"
+                    info_text = f"Dòng {row_idx}{note_tag} (Chưa thấy PDF)"
                     color = QColor("#757575")
 
             title_text = f"{icon} STT {stt:04d}: {serial}"
+            if note_a:
+                title_text += f" [{note_a}]"
             tree_item = QTreeWidgetItem([title_text, info_text])
             tree_item.setData(0, ROLE_ITEM_TYPE, "excel_row")
             tree_item.setData(0, ROLE_ROW_NUM, row_idx)

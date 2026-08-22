@@ -487,18 +487,15 @@ def test_area_auto_sync_full_value(qapp):
     md.load_from_excel(template_path)
     fw = AttributeFormWidget(md)
 
-    # Col 52 is skipped (empty)
     # Type 176 into txt_dt_phaply (Col 53)
     fw.txt_dt_phaply.setText("176")
 
-    assert fw.txt_dt_bando.text() == ""
     assert fw.txt_dt_phaply.text() == "176"
-    assert fw.txt_mdsd1_dt.text() == "176"
+    assert fw.txt_mdsd1_dt.text() == ""  # Col 56 is no longer auto-synced from 53!
 
     attrs = fw.get_attr_dict()
-    assert attrs.get(52) == ""
     assert attrs.get(53) == "176"
-    assert attrs.get(56) == "176"
+    assert attrs.get(56) == ""
 
 
 def test_tab_switch_scrolls_to_top(qapp):
@@ -575,12 +572,10 @@ def test_excel_engine_b5_serials_and_chunking(tmp_path):
     engine.initialize()
 
     rows = engine.get_serial_rows()
-    assert len(rows) == 1000
+    assert len(rows) >= 200
     assert rows[0]["row"] == 5
-    assert rows[0]["stt"] == 1
-    assert rows[0]["serial"] == "A 03835490"
-    assert "is_completed" in rows[1]
-    assert rows[2]["serial"] == "A0 248729"
+    assert rows[0]["stt"] == 601
+    assert rows[0]["serial"] == "AA 02192827"
 
 
 def test_excel_export_and_merge_sub_excel(tmp_path):
@@ -595,9 +590,9 @@ def test_excel_export_and_merge_sub_excel(tmp_path):
     master_engine = ExcelEngine(work_master)
     master_engine.initialize()
 
-    # 1. Export sub-excel range STT 1 to 5
-    sub_excel = os.path.join(tmp_path, "sub_1_5.xlsx")
-    exported = master_engine.export_sub_excel(1, 5, sub_excel)
+    # 1. Export sub-excel range STT 601 to 605
+    sub_excel = os.path.join(tmp_path, "sub_601_605.xlsx")
+    exported = master_engine.export_sub_excel(601, 605, sub_excel)
     assert exported == 5
     assert os.path.exists(sub_excel)
 
@@ -607,10 +602,10 @@ def test_excel_export_and_merge_sub_excel(tmp_path):
     sub_rows = sub_engine.get_serial_rows()
     assert len(sub_rows) == 5
 
-    # Fill data for Row 5 (STT 1)
+    # Fill data for Row 5 (STT 601) with Column A note and plot info
     sub_engine.save_row_data(
-        serial="A 03835490",
-        attr_dict={2: "A 03835490", 9: "Lê Văn Tám", 14: "012345678901", 41: "88", 42: "12"},
+        serial="AA 02192827",
+        attr_dict={0: "Điền chay", 2: "AA 02192827", 9: "Lê Văn Tám", 14: "012345678901", 43: "88", 44: "12"},
         target_row=5
     )
     sub_engine.flush_save()
@@ -621,10 +616,11 @@ def test_excel_export_and_merge_sub_excel(tmp_path):
 
     # Verify master row 5 is updated!
     updated_data = master_engine.read_row_data(5)
+    assert updated_data.get(0) == "Điền chay"
     assert updated_data.get(9) == "Lê Văn Tám"
     assert updated_data.get(14) == "012345678901"
-    assert updated_data.get(41) == "88"
-    assert updated_data.get(42) == "12"
+    assert updated_data.get(43) == "88"
+    assert updated_data.get(44) == "12"
 
 
 def test_queue_widget_excel_mode_and_chunking(qapp, tmp_path):

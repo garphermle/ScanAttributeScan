@@ -19,6 +19,11 @@ class ExcelEngine:
         self.ws = None
         self._lock = threading.RLock()
 
+        # Dynamic column mapping (supports nhapthua1.xlsx and standard 186-column forms)
+        self._col_to_excel_col: Dict[int, int] = {}
+        self._excel_to_col_map: Dict[int, int] = {}
+        self._note_excel_col: Optional[int] = None
+
         # In-memory fast cache
         self._cached_serial_rows: List[Dict[str, Any]] = []
         self._serial_to_row_map: Dict[str, int] = {}
@@ -27,6 +32,52 @@ class ExcelEngine:
         self._total_rows_count: int = 0
         self._dirty = False
         self._is_saving = False
+
+    def _detect_column_mapping(self):
+        """
+        Dynamically detects column layout from row 4 (1..186) and detects Column A "Ghi Chú".
+        Supports both nhapthua1.xlsx (179 cols, Col A note) and standard templates (186 cols).
+        """
+        self._col_to_excel_col.clear()
+        self._excel_to_col_map.clear()
+        self._note_excel_col = None
+
+        if not self.ws:
+            return
+
+        max_c = max(self.ws.max_column or 0, 186)
+        has_r4_nums = False
+
+        for c in range(1, max_c + 1):
+            r4_val = self.ws.cell(4, c).value
+            if r4_val is not None:
+                str_val = str(r4_val).strip()
+                if str_val.isdigit():
+                    num = int(str_val)
+                    if 1 <= num <= 186:
+                        self._col_to_excel_col[num] = c
+                        self._excel_to_col_map[c] = num
+                        has_r4_nums = True
+
+            # Check if column is "Ghi chú" in row 1 or 2
+            r1_val = str(self.ws.cell(1, c).value or "").strip().lower()
+            r2_val = str(self.ws.cell(2, c).value or "").strip().lower()
+            if "ghi chú" in r1_val or "ghi chu" in r1_val or "ghi chú" in r2_val or "ghi chu" in r2_val:
+                if c == 1 or (c not in self._excel_to_col_map):
+                    self._note_excel_col = c
+
+        if not has_r4_nums:
+            for c in range(1, 187):
+                self._col_to_excel_col[c] = c
+                self._excel_to_col_map[c] = c
+            r1_c1 = str(self.ws.cell(1, 1).value or "").strip().lower()
+            if "ghi chú" in r1_c1 or "ghi chu" in r1_c1:
+                self._note_excel_col = 1
+        else:
+            # Fallback for any field not explicitly mapped
+            for f in range(1, 187):
+                if f not in self._col_to_excel_col:
+                    self._col_to_excel_col[f] = f
 
     def initialize(self, force_reload: bool = False):
         """Ensures output file exists by copying template if necessary, then loads workbook and builds memory cache."""
@@ -65,37 +116,53 @@ class ExcelEngine:
                 self._total_rows_count = 0
                 return
 
+            self._detect_column_mapping()
+
+            col_stt = self._col_to_excel_col.get(1, 1)
+            col_serial = self._col_to_excel_col.get(2, 2)
+            col_mhs = self._col_to_excel_col.get(3, 3)
+            col_owner = self._col_to_excel_col.get(9, 9)
+            col_id = self._col_to_excel_col.get(14, 14)
+            col_plot = self._col_to_excel_col.get(43, 43)
+            col_sheet = self._col_to_excel_col.get(44, 44)
+            col_dt53 = self._col_to_excel_col.get(53, 53)
+            col_xa = self._col_to_excel_col.get(93, 93)
+            col_gc2 = self._col_to_excel_col.get(110, 110)
+            col_folder = self._col_to_excel_col.get(183, 183)
+            col_note_a = self._note_excel_col
+
             max_r = self.ws.max_row
             for r in range(5, max_r + 1):
-                val_col1 = self.ws.cell(r, 1).value
-                val_col2 = self.ws.cell(r, 2).value
-                val_col3 = self.ws.cell(r, 3).value
-                val_col9 = self.ws.cell(r, 9).value
-                val_col14 = self.ws.cell(r, 14).value
-                val_col41 = self.ws.cell(r, 41).value
-                val_col42 = self.ws.cell(r, 42).value
-                val_col43 = self.ws.cell(r, 43).value
-                val_col44 = self.ws.cell(r, 44).value
-                val_col93 = self.ws.cell(r, 93).value
-                val_col110 = self.ws.cell(r, 110).value
-                val_col183 = self.ws.cell(r, 183).value
+                val_note_a = self.ws.cell(r, col_note_a).value if col_note_a else None
+                val_stt = self.ws.cell(r, col_stt).value
+                val_serial = self.ws.cell(r, col_serial).value
+                val_mhs = self.ws.cell(r, col_mhs).value
+                val_owner = self.ws.cell(r, col_owner).value
+                val_id = self.ws.cell(r, col_id).value
+                val_plot = self.ws.cell(r, col_plot).value
+                val_sheet = self.ws.cell(r, col_sheet).value
+                val_dt53 = self.ws.cell(r, col_dt53).value
+                val_xa = self.ws.cell(r, col_xa).value
+                val_gc2 = self.ws.cell(r, col_gc2).value
+                val_folder = self.ws.cell(r, col_folder).value
 
-                serial = str(val_col2 or '').strip()
-                if not serial and not val_col3 and not val_col9 and not val_col43 and not val_col44:
+                serial = str(val_serial or '').strip()
+                if not serial and not val_mhs and not val_owner and not val_plot and not val_sheet:
                     continue
 
                 try:
-                    stt_val = int(val_col1) if (val_col1 is not None and str(val_col1).strip().isdigit()) else (r - 4)
+                    stt_val = int(val_stt) if (val_stt is not None and str(val_stt).strip().isdigit()) else (r - 4)
                 except Exception:
                     stt_val = r - 4
 
-                owner_name = str(val_col9 or '').strip()
-                id_num = str(val_col14 or '').strip()
-                plot = str(val_col43 or val_col41 or '').strip()
-                map_sheet = str(val_col44 or val_col42 or '').strip()
-                area = str(val_col93 or '').strip()
+                owner_name = str(val_owner or '').strip()
+                id_num = str(val_id or '').strip()
+                plot = str(val_plot or '').strip()
+                map_sheet = str(val_sheet or '').strip()
+                area = str(val_dt53 or val_xa or '').strip()
+                note_a = str(val_note_a or '').strip()
 
-                is_done = bool(owner_name or id_num or plot or map_sheet or str(val_col110 or '').strip())
+                is_done = bool(owner_name or id_num or plot or map_sheet or str(val_gc2 or '').strip())
 
                 row_obj = {
                     "row": r,
@@ -106,6 +173,7 @@ class ExcelEngine:
                     "plot": plot,
                     "map_sheet": map_sheet,
                     "area": area,
+                    "note_a": note_a,
                     "is_completed": is_done
                 }
                 self._cached_serial_rows.append(row_obj)
@@ -114,10 +182,10 @@ class ExcelEngine:
 
                 if serial:
                     self._serial_to_row_map[serial.lower()] = r
-                if val_col3:
-                    self._serial_to_row_map[str(val_col3).strip().lower()] = r
-                if val_col183:
-                    self._serial_to_row_map[str(val_col183).strip().lower()] = r
+                if val_mhs:
+                    self._serial_to_row_map[str(val_mhs).strip().lower()] = r
+                if val_folder:
+                    self._serial_to_row_map[str(val_folder).strip().lower()] = r
 
             self._total_rows_count = len(self._cached_serial_rows)
 
@@ -260,7 +328,7 @@ class ExcelEngine:
             return self._completed_rows_count
 
     def read_row_data(self, row_idx: int) -> Dict[int, Any]:
-        """Reads all 186 column values for a given row index."""
+        """Reads all field values for a given row index, mapped dynamically."""
         with self._lock:
             if row_idx in self._row_data_cache:
                 return dict(self._row_data_cache[row_idx])
@@ -268,10 +336,23 @@ class ExcelEngine:
             if not self.ws:
                 self.initialize()
 
-            data = {}
-            for c in range(1, 187):
-                val = self.ws.cell(row_idx, c).value
-                data[c] = "" if val is None else val
+            data: Dict[int, Any] = {}
+            # Read Column A (Note)
+            if self._note_excel_col:
+                val_note = self.ws.cell(row_idx, self._note_excel_col).value
+                data[0] = "" if val_note is None else str(val_note).strip()
+            else:
+                data[0] = ""
+
+            # Read fields 1..186
+            for field_num in range(1, 187):
+                excel_col = self._col_to_excel_col.get(field_num, field_num)
+                if excel_col <= (self.ws.max_column or 0):
+                    val = self.ws.cell(row_idx, excel_col).value
+                    data[field_num] = "" if val is None else val
+                else:
+                    data[field_num] = ""
+
             self._row_data_cache[row_idx] = data
             return data
 
@@ -290,15 +371,25 @@ class ExcelEngine:
             if not row_idx:
                 row_idx = self.find_first_empty_row()
 
+            # Save Column A Note (Field 0) if present
+            note_a_val = attr_dict.get(0, "")
+            if self._note_excel_col:
+                self.ws.cell(row_idx, self._note_excel_col, value=note_a_val if note_a_val else None)
+
+            # Save STT (Field 1)
+            stt_col = self._col_to_excel_col.get(1, 1)
             stt_val = row_idx - 4
-            self.ws.cell(row_idx, 1, value=stt_val)
+            self.ws.cell(row_idx, stt_col, value=stt_val)
 
             if 2 not in attr_dict or not attr_dict[2]:
                 attr_dict[2] = serial
 
-            for c, val in attr_dict.items():
-                if 1 <= c <= 186:
-                    self.ws.cell(row_idx, c, value=val)
+            for field_num, val in attr_dict.items():
+                if field_num == 0:
+                    continue
+                if 1 <= field_num <= 186:
+                    excel_col = self._col_to_excel_col.get(field_num, field_num)
+                    self.ws.cell(row_idx, excel_col, value=val)
 
             # Update row cache
             if row_idx not in self._row_data_cache:
@@ -310,7 +401,9 @@ class ExcelEngine:
             plot = str(attr_dict.get(43) or attr_dict.get(41) or "")
             map_sheet = str(attr_dict.get(44) or attr_dict.get(42) or "")
             gc2 = str(attr_dict.get(110) or "")
-            is_done = bool(owner_name or plot or map_sheet or gc2)
+            area_val = str(attr_dict.get(53) or attr_dict.get(93) or "")
+            note_a_str = str(note_a_val or "")
+            is_done = bool(owner_name or plot or map_sheet or gc2 or area_val)
 
             found_item = None
             for item in self._cached_serial_rows:
@@ -323,6 +416,8 @@ class ExcelEngine:
                 found_item["owner_name"] = owner_name
                 found_item["plot"] = plot
                 found_item["map_sheet"] = map_sheet
+                found_item["area"] = area_val
+                found_item["note_a"] = note_a_str
                 found_item["is_completed"] = is_done
                 if not was_done and is_done:
                     self._completed_rows_count += 1
@@ -335,7 +430,8 @@ class ExcelEngine:
                     "id_num": str(attr_dict.get(14) or ""),
                     "plot": plot,
                     "map_sheet": map_sheet,
-                    "area": str(attr_dict.get(93) or ""),
+                    "area": area_val,
+                    "note_a": note_a_str,
                     "is_completed": is_done
                 }
                 self._cached_serial_rows.append(new_item)
@@ -353,6 +449,7 @@ class ExcelEngine:
     def export_sub_excel(self, start_stt: int, end_stt: int, output_path: str) -> int:
         """
         Exports a slice of rows corresponding to STT range [start_stt, end_stt] into a new Excel file.
+        Preserves custom column structures like nhapthua1.xlsx (Column A note, etc.).
         """
         with self._lock:
             self.flush_save()
@@ -363,29 +460,38 @@ class ExcelEngine:
             sheet_name = 'Data' if 'Data' in wb_source.sheetnames else wb_source.sheetnames[0]
             ws_source = wb_source[sheet_name]
 
-            wb_sub = openpyxl.load_workbook(self.template_path or self.output_path)
-            ws_sub = wb_sub['Data'] if 'Data' in wb_sub.sheetnames else wb_sub.active
+            # Use source file as template to preserve exact custom columns (e.g. Column A note)
+            wb_sub = openpyxl.load_workbook(self.output_path)
+            ws_sub = wb_sub[sheet_name]
 
+            max_c = ws_source.max_column
+
+            # Clear all data rows from 5 downwards
             for r in range(5, ws_sub.max_row + 1):
-                for c in range(1, 187):
+                for c in range(1, max_c + 1):
                     ws_sub.cell(r, c).value = None
 
             dest_row = 5
             exported_count = 0
 
-            for r in range(5, ws_source.max_row + 1):
-                val_col1 = ws_source.cell(r, 1).value
-                val_col2 = ws_source.cell(r, 2).value
+            col_stt = self._col_to_excel_col.get(1, 1)
+            col_serial = self._col_to_excel_col.get(2, 2)
 
-                try:
-                    current_stt = int(val_col1) if (val_col1 is not None and str(val_col1).strip().isdigit()) else (r - 4)
-                except Exception:
+            for r in range(5, ws_source.max_row + 1):
+                val_stt = ws_source.cell(r, col_stt).value
+                val_serial = ws_source.cell(r, col_serial).value
+                if not val_stt and not val_serial:
+                    continue
+
+                if val_stt is not None and str(val_stt).strip().isdigit():
+                    current_stt = int(val_stt)
+                else:
                     current_stt = r - 4
 
                 if start_stt <= current_stt <= end_stt:
-                    for c in range(1, 187):
+                    for c in range(1, max_c + 1):
                         ws_sub.cell(dest_row, c).value = ws_source.cell(r, c).value
-                    ws_sub.cell(dest_row, 1).value = current_stt
+                    ws_sub.cell(dest_row, col_stt).value = current_stt
                     dest_row += 1
                     exported_count += 1
 
@@ -398,51 +504,43 @@ class ExcelEngine:
     def merge_sub_excel(self, sub_excel_path: str) -> Tuple[int, int]:
         """
         Merges completed rows from a sub-excel file into the master Excel file.
+        Supports custom column layouts and Column A note.
         """
         with self._lock:
             self.flush_save()
             if not os.path.exists(sub_excel_path):
                 raise FileNotFoundError(f"Sub-excel file not found: {sub_excel_path}")
 
-            wb_sub = openpyxl.load_workbook(sub_excel_path, data_only=True)
-            ws_sub = wb_sub['Data'] if 'Data' in wb_sub.sheetnames else wb_sub.active
+            sub_eng = ExcelEngine(sub_excel_path)
+            sub_eng.initialize()
 
             merged_count = 0
             skipped_count = 0
 
-            for r_sub in range(5, ws_sub.max_row + 1):
-                val_stt = ws_sub.cell(r_sub, 1).value
-                val_serial = str(ws_sub.cell(r_sub, 2).value or '').strip()
+            for item in sub_eng.get_serial_rows():
+                sub_r = item["row"]
+                serial = item["serial"]
+                is_done = item["is_completed"]
+                note_a = item.get("note_a", "")
 
-                has_sub_data = any(
-                    ws_sub.cell(r_sub, c).value is not None and str(ws_sub.cell(r_sub, c).value).strip() != ''
-                    for c in (9, 14, 43, 44, 110)
-                )
+                row_dict = sub_eng.read_row_data(sub_r)
+                has_data = bool(is_done or note_a or any(v for k, v in row_dict.items() if k != 1 and k != 2 and v))
 
-                if not has_sub_data:
+                if not has_data:
                     skipped_count += 1
                     continue
 
-                target_row = None
-                if val_stt is not None and str(val_stt).strip().isdigit():
-                    target_row = int(val_stt) + 4
-                elif val_serial:
-                    target_row = self.find_row_by_serial(val_serial)
-
+                target_row = self.find_row_by_serial(serial)
+                if not target_row:
+                    stt_val = item.get("stt")
+                    if stt_val:
+                        target_row = self.find_row_by_serial(str(stt_val))
                 if not target_row:
                     target_row = self.find_first_empty_row()
 
-                row_dict = {}
-                for c in range(1, 187):
-                    val = ws_sub.cell(r_sub, c).value
-                    if val is not None and str(val).strip() != '':
-                        row_dict[c] = val
+                self.save_row_data(serial=serial, attr_dict=row_dict, target_row=target_row, save_async=False)
+                merged_count += 1
 
-                if row_dict:
-                    self.save_row_data(serial=val_serial, attr_dict=row_dict, target_row=target_row, save_async=False)
-                    merged_count += 1
-
-            wb_sub.close()
             self.save_workbook_safe()
             self.initialize(force_reload=True)
             return merged_count, skipped_count

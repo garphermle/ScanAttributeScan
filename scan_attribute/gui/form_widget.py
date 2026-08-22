@@ -311,6 +311,37 @@ class AttributeFormWidget(QWidget):
         r_gc.addWidget(self.txt_ghi_chu_t2)
         focus_layout.addLayout(r_gc)
 
+        # Row 7: Ghi chú (Cột A) - Nhận diện Điền chay
+        r_cola = QHBoxLayout()
+        lbl_cola = QLabel("🏷️ Ghi chú (Cột A):")
+        lbl_cola.setProperty("class", "focus-label")
+        lbl_cola.setFixedWidth(160)
+        self.txt_ghi_chu_col_a = QLineEdit()
+        self.txt_ghi_chu_col_a.setProperty("class", "focus-input")
+        self.txt_ghi_chu_col_a.setPlaceholderText("Ghi chú nhận diện (VD: Điền chay, Chưa có PDF...)")
+        self._register_input(0, self.txt_ghi_chu_col_a)
+
+        self.btn_dien_chay = QPushButton("⚡ Điền chay")
+        self.btn_dien_chay.setStyleSheet("""
+            QPushButton {
+                background-color: #f57c00;
+                color: white;
+                font-weight: bold;
+                font-size: 11px;
+                padding: 4px 12px;
+                border-radius: 3px;
+            }
+            QPushButton:hover {
+                background-color: #e65100;
+            }
+        """)
+        self.btn_dien_chay.clicked.connect(lambda: self.txt_ghi_chu_col_a.setText("Điền chay"))
+
+        r_cola.addWidget(lbl_cola)
+        r_cola.addWidget(self.txt_ghi_chu_col_a, stretch=1)
+        r_cola.addWidget(self.btn_dien_chay)
+        focus_layout.addLayout(r_cola)
+
         root_layout.addWidget(focus_card)
 
         # -------------------------------------------------------------
@@ -373,12 +404,13 @@ class AttributeFormWidget(QWidget):
         btn_row.addWidget(self.btn_save)
         root_layout.addLayout(btn_row)
 
-        # Tab Order: 43 -> 44 -> 93 -> 53 -> 110 -> Save
+        # Tab Order: 43 -> 44 -> 93 -> 53 -> 110 -> 0 -> Save
         QWidget.setTabOrder(self.txt_thua_so, self.txt_thua_to)
         QWidget.setTabOrder(self.txt_thua_to, self.cmb_thua_xa)
         QWidget.setTabOrder(self.cmb_thua_xa, self.txt_dt_phaply)
         QWidget.setTabOrder(self.txt_dt_phaply, self.txt_ghi_chu_t2)
-        QWidget.setTabOrder(self.txt_ghi_chu_t2, self.btn_save)
+        QWidget.setTabOrder(self.txt_ghi_chu_t2, self.txt_ghi_chu_col_a)
+        QWidget.setTabOrder(self.txt_ghi_chu_col_a, self.btn_save)
 
         self.active_input_widget = self.txt_thua_so
         self._track_focus()
@@ -1560,14 +1592,12 @@ class AttributeFormWidget(QWidget):
         if clean:
             if hasattr(self, 'txt_dt_phaply') and (not self.txt_dt_phaply.text() or self.txt_dt_phaply.text() == clean):
                 self.txt_dt_phaply.setText(clean)
-            if hasattr(self, 'txt_mdsd1_dt') and (not self.txt_mdsd1_dt.text() or self.txt_mdsd1_dt.text() == clean):
-                self.txt_mdsd1_dt.setText(clean)
 
     def _auto_sync_dt_phaply(self, text: str):
         clean = text.strip()
         if clean:
-            if not self.txt_mdsd1_dt.text() or self.txt_mdsd1_dt.text() == clean:
-                self.txt_mdsd1_dt.setText(clean)
+            if hasattr(self, 'txt_dt_bando') and (not self.txt_dt_bando.text() or self.txt_dt_bando.text() == clean):
+                self.txt_dt_bando.setText(clean)
 
     def _on_chu_commune_changed(self, idx: int):
         data = self.cmb_chu_xa.currentData()
